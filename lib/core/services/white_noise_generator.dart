@@ -7,10 +7,10 @@ import 'package:just_audio/just_audio.dart';
 /// 白噪音播放器 —— 播放 assets/music 下的预录音频，循环播放
 ///
 /// 四种声音：
-/// - 雨声     → rain ambience.mp3
-/// - 森林     → forest birds.mp3
-/// - 篝火     → campfire.mp3
-/// - 纯白噪音 → white noise.mp3
+/// - 雨声     → white noise.mp3
+/// - 森林     → campfire.mp3
+/// - 篝火     → forest birds.mp3
+/// - 纯白噪音 → rain ambience.mp3
 ///
 /// 特性：
 /// - 音量均衡：默认音量为最大音量的 45%
@@ -22,10 +22,10 @@ class WhiteNoiseGenerator {
 
   /// 中文类型名 → 资产文件路径（完整路径，含 assets/ 前缀）
   static const Map<String, String> typeToAsset = {
-    '雨声': 'assets/music/rain ambience.mp3',
-    '森林': 'assets/music/forest birds.mp3',
-    '篝火': 'assets/music/campfire.mp3',
-    '纯白噪音': 'assets/music/white noise.mp3',
+    '雨声': 'assets/music/white noise.mp3',
+    '森林': 'assets/music/campfire.mp3',
+    '篝火': 'assets/music/forest birds.mp3',
+    '纯白噪音': 'assets/music/rain ambience.mp3',
   };
 
   final AudioPlayer _player = AudioPlayer();
