@@ -20,7 +20,6 @@ class _QuizViewState extends State<QuizView> {
   final List<int> _userAnswers = [];
   int _currentIndex = 0;
   bool _parseError = false;
-  bool _submitting = false;
 
   @override
   void initState() {
@@ -28,13 +27,9 @@ class _QuizViewState extends State<QuizView> {
     _parseQuestions();
   }
 
-  /// 提交答案：延迟到下一帧执行 pop，避免 Navigator 锁冲突
+  /// 提交答案
   void _submit() {
-    if (_submitting) return;
-    _submitting = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).pop(_userAnswers);
-    });
+    Navigator.of(context).pop(_userAnswers);
   }
 
   void _parseQuestions() {

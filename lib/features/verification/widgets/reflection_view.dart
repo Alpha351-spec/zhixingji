@@ -21,7 +21,6 @@ class ReflectionView extends StatefulWidget {
 class _ReflectionViewState extends State<ReflectionView> {
   final TextEditingController _controller = TextEditingController();
   final int _minChars = 30;
-  bool _submitting = false;
 
   @override
   void dispose() {
@@ -29,14 +28,12 @@ class _ReflectionViewState extends State<ReflectionView> {
     super.dispose();
   }
 
-  /// 提交反思：延迟到下一帧执行 pop，避免在 build 周期中触发 Navigator 锁冲突
+  /// 提交反思
+  /// 使用 State.context（而非 ValueListenableBuilder 的 builder context）
+  /// State.context 在 build 完成后稳定，onPressed 触发时 Navigator 不处于锁定状态
   void _submit() {
-    if (_submitting) return;
-    _submitting = true;
     final text = _controller.text.trim();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) Navigator.of(context).pop(text);
-    });
+    Navigator.of(context).pop(text);
   }
 
   @override

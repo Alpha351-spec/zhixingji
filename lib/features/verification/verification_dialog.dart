@@ -47,17 +47,19 @@ class _VerificationDialogState extends State<VerificationDialog> {
   @override
   void initState() {
     super.initState();
-    _startVerification();
+    // 延迟到首帧完成后启动验证流程
+    // 直接在 initState 中调用 Navigator.push 会触发 _debugLocked 断言失败
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _startVerification();
+    });
   }
 
   Future<void> _startVerification() async {
-    setState(() => _phase = _VerificationPhase.loading);
+    // 不调用 setState，保持 loading 状态
     try {
       if (widget.task.verificationType == 'quiz') {
         final result = await AIService.generateQuiz(widget.task);
         _questionsJson = result;
-        // 不改变 _phase，直接 push QuizView 作为独立路由
-        // QuizView 内部会通过 Navigator.pop 返回 List<int> 用户答案
         if (!mounted) return;
         final answers = await Navigator.of(context).push<List<int>>(
           MaterialPageRoute(
