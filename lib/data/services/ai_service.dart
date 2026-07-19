@@ -176,6 +176,17 @@ JSON 格式：
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
+  /// 根据每日任务数动态计算 max_tokens
+  ///
+  /// 每个任务约需 150-200 tokens（title+description+keywords+encouragement）
+  /// 加上 diagnosis 和引导文本约 500 tokens
+  /// 下限 3000，上限 8000
+  static int get _dynamicMaxTokens {
+    final taskCount = SettingsService.current.dailyTaskLimit;
+    final estimatedTokens = taskCount * 7 * 200 + 500;
+    return estimatedTokens.clamp(3000, 8000);
+  }
+
   /// 构建用户学习偏好提示词片段（注入到系统提示词中）
   ///
   /// 将设置页中的 AI 相关设置项（每日任务数、计划详细程度、每周休息日）
@@ -549,7 +560,7 @@ JSON 格式：
         'model': AppConstants.model,
         'messages': allMessages,
         'temperature': AppConstants.temperature,
-        'max_tokens': AppConstants.maxTokens,
+        'max_tokens': _dynamicMaxTokens,
       };
 
       if (allowTools) {
@@ -640,7 +651,7 @@ JSON 格式：
             'model': AppConstants.model,
             'messages': allMessages,
             'temperature': AppConstants.temperature,
-            'max_tokens': AppConstants.maxTokens,
+            'max_tokens': _dynamicMaxTokens,
             'tool_choice': 'none',
           }),
         )
@@ -694,7 +705,7 @@ $feedback
         'model': AppConstants.model,
         'messages': allMessages,
         'temperature': AppConstants.temperature,
-        'max_tokens': AppConstants.maxTokens,
+        'max_tokens': _dynamicMaxTokens,
       };
 
       if (allowTools) {
@@ -780,7 +791,7 @@ $feedback
             'model': AppConstants.model,
             'messages': allMessages,
             'temperature': AppConstants.temperature,
-            'max_tokens': AppConstants.maxTokens,
+            'max_tokens': _dynamicMaxTokens,
             'tool_choice': 'none',
           }),
         )
@@ -963,7 +974,7 @@ $feedback
         'model': AppConstants.model,
         'messages': allMessages,
         'temperature': AppConstants.temperature,
-        'max_tokens': AppConstants.maxTokens,
+        'max_tokens': _dynamicMaxTokens,
       };
 
       if (allowTools) {
@@ -1049,7 +1060,7 @@ $feedback
             'model': AppConstants.model,
             'messages': allMessages,
             'temperature': AppConstants.temperature,
-            'max_tokens': AppConstants.maxTokens,
+            'max_tokens': _dynamicMaxTokens,
             'tool_choice': 'none',
           }),
         )
