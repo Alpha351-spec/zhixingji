@@ -80,9 +80,9 @@ class _SettingsPageState extends State<SettingsPage> {
                   _sliderRow(
                     label: '每日任务数',
                     value: _settings.dailyTaskLimit.toDouble(),
-                    min: 2,
+                    min: 1,
                     max: 8,
-                    divisions: 6,
+                    divisions: 7,
                     valueLabel: '${_settings.dailyTaskLimit} 个/天',
                     onChanged: (v) => _update(_settings.copyWith(dailyTaskLimit: v.round())),
                   ),

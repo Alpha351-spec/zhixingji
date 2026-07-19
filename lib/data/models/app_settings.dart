@@ -6,7 +6,7 @@ class AppSettings {
   /// 资源显示模式：纯净模式 / 引导模式 / 资源模式
   final String resourceMode;
 
-  /// 每日任务数：2-8，AI 生成计划时每天安排的任务数量
+  /// 每日任务数：1-8，AI 生成计划时每天安排的任务数量
   final int dailyTaskLimit;
 
   /// 计划详细程度：精简 / 标准 / 详细

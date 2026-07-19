@@ -117,8 +117,8 @@ JSON 必须放在 ```json 代码块中，格式如下：
 
 ## 注意事项
 - 在未收集到足够信息前，只进行自然对话，不要输出 JSON
-- tasks 的 day 字段为 1-7，同一天必须有多个任务（day 字段相同），具体数量见"用户学习偏好"
-- 必须严格遵守"用户学习偏好"中指定的每日任务数量，不能少安排
+- tasks 的 day 字段为 1-7，同一天可以有多个任务（day 字段相同），具体数量见"用户学习偏好"
+- 必须遵守"用户学习偏好"中的每日任务数量要求，并结合用户每日时间合理调整
 - 如果有截止日期，total_days = 从今天到截止日期的天数
 - 如果无截止日期，total_days = 用户选择的周期（14/30/60/90/120）
 - 鼓励语要简短有温度
@@ -178,25 +178,33 @@ JSON 格式：
 
   /// 构建用户学习偏好提示词片段（注入到系统提示词中）
   ///
-  /// 将设置页中的 AI 相关设置项（每日任务上限、计划详细程度、每周休息日）
+  /// 将设置页中的 AI 相关设置项（每日任务数、计划详细程度、每周休息日）
   /// 拼接到系统提示词，让 AI 生成的计划遵循用户偏好。
   ///
   /// 核心策略：
-  /// - dailyTaskLimit 作为每天任务数量的目标值（必须达到）
+  /// - dailyTaskLimit 作为每天任务数量的目标值
+  /// - 但 AI 需结合用户每日可投入时间判断是否可行
+  /// - 如果时间不足以完成目标任务数，AI 应适当减少并在计划中说明原因
   /// - planDetailLevel 只控制每条任务描述的长度
   static String get _userPrefsPrompt {
     final s = SettingsService.current;
     final buf = StringBuffer('\n\n## 重要：用户学习偏好（必须遵守，不可违反）\n');
 
-    // 每日任务数量：直接用 dailyTaskLimit 作为目标值
-    // 要求 AI 每天必须安排这个数量的任务（允许浮动，但不能少于）
+    // 每日任务数量
     final targetCount = s.dailyTaskLimit;
-    buf.writeln('### 每日任务数量（强制要求）');
-    buf.writeln('- 每天必须安排 $targetCount 个任务（这是用户设定的目标值）');
-    buf.writeln('- 7天总计应生成 ${targetCount * 7} 个任务（如果某天是休息日则该天不安排）');
+    buf.writeln('### 每日任务数量');
+    buf.writeln('- 用户期望每天安排 $targetCount 个任务');
     buf.writeln('- 同一天的任务 day 字段相同，例如 day=1 的任务有 $targetCount 个');
-    buf.writeln('- 任务总数不能少于 $targetCount × 7 = ${targetCount * 7}');
     buf.writeln('- 每个任务应有不同的 title，覆盖该天学习内容的不同方面');
+    buf.writeln('');
+    buf.writeln('**时间适配规则（重要）：**');
+    buf.writeln('- 你已收集到用户"每天可投入时间"，请据此判断 $targetCount 个任务是否合理');
+    buf.writeln('- 每个任务预计耗时 15-45 分钟，$targetCount 个任务约需 ${targetCount * 25}-${targetCount * 40} 分钟');
+    buf.writeln('- 如果用户每日时间充足（≥${targetCount * 30}分钟）：按 $targetCount 个任务生成');
+    buf.writeln('- 如果用户每日时间明显不足（<${(targetCount * 25).clamp(15, 999)}分钟）：');
+    buf.writeln('  - 适当减少任务数（最低可到 1 个），确保任务可在用户时间内完成');
+    buf.writeln('  - 在计划引导文本中说明："考虑到你每天只有X时间，已调整为每天Y个任务"');
+    buf.writeln('- 7天总计任务数 = 实际每日任务数 × 7（休息日除外）');
 
     // 计划详细程度：只控制描述长度
     buf.writeln('\n### 计划详细程度');
