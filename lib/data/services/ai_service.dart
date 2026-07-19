@@ -200,23 +200,25 @@ JSON 格式：
 
   /// 生成验证题目（quiz 类型）
   ///
-  /// 根据任务标题和描述生成 2-3 道单选题。
+  /// 根据任务标题和描述生成 2 道单选题。
   /// 返回 JSON 字符串：{ "questions": [{ "question": "...", "options": [...], "correct_index": 0 }] }
   static Future<String> generateQuiz(Task task) async {
-    final prompt = '请根据以下学习任务生成 2 道单选题用于打卡验证。\n'
-        '任务标题：${task.title}\n'
-        '任务描述：${task.description}\n\n'
-        '要求：\n'
-        '- 题目应覆盖任务的核心知识点\n'
+    final prompt = '请根据以下学习任务的核心知识点生成 2 道单选题用于打卡验证。\n\n'
+        '【任务标题】${task.title}\n'
+        '【任务描述】${task.description}\n\n'
+        '【出题要求】\n'
+        '- 题目必须针对本任务描述中的具体知识点，不能出通用题\n'
         '- 每题 4 个选项，只有 1 个正确答案\n'
-        '- 难度适中，不要过于刁钻\n'
-        '- 只输出 JSON，不要其他文字\n\n'
-        'JSON 格式：\n'
+        '- 正确选项必须是任务描述中明确涉及的内容\n'
+        '- 错误选项应是合理的干扰项，不能太离谱\n'
+        '- 难度适中，但必须真正考察对任务内容的理解\n'
+        '- 题目和选项中应包含任务相关的专业术语\n\n'
+        '【输出格式】只输出以下 JSON，不要其他文字：\n'
         '```json\n'
         '{\n'
         '  "questions": [\n'
         '    {\n'
-        '      "question": "题目文本",\n'
+        '      "question": "针对任务知识点的题目",\n'
         '      "options": ["选项A", "选项B", "选项C", "选项D"],\n'
         '      "correct_index": 0\n'
         '    }\n'
@@ -260,23 +262,39 @@ JSON 格式：
 
   /// 评判反思文字（reflection 类型）
   ///
-  /// 返回 JSON 字符串：{ "passed": true/false, "feedback": "...", "suggestion": "..." }
+  /// 返回 JSON 字符串：{ "passed": true/false, "score": 80, "feedback": "...", "suggestion": "..." }
   static Future<String> evaluateReflection(Task task, String userReflection) async {
-    final prompt = '请评判用户的学习反思。\n'
-        '任务标题：${task.title}\n'
-        '任务描述：${task.description}\n\n'
-        '用户反思：\n$userReflection\n\n'
-        '评判规则（宽松把关）：\n'
-        '- 反思 ≥ 30 字且有实质内容即通过\n'
-        '- 只在以下情况不通过：空白、纯标点、与任务完全无关、敷衍重复\n'
-        '- 反馈语气鼓励性，先肯定再给建议\n'
-        '- 只输出 JSON，不要其他文字\n\n'
-        'JSON 格式：\n'
+    final prompt = '请评判用户的学习反思是否真正涉及本任务的核心内容。\n\n'
+        '【任务标题】${task.title}\n'
+        '【任务描述】${task.description}\n\n'
+        '【用户反思】\n$userReflection\n\n'
+        '【评判标准】\n'
+        '1. 相关性（必须）：反思必须明确提及任务中的具体知识点、概念、方法或关键术语。泛泛而谈（如"学到了很多"、"很有收获"）不算相关。\n'
+        '2. 实质性（必须）：反思必须包含至少一个具体要点，例如：\n'
+        '   - 对某个概念的理解或解释\n'
+        '   - 某个方法/技巧的运用或体会\n'
+        '   - 遇到的具体问题及思考\n'
+        '   - 与已有知识的联系或对比\n'
+        '3. 字数：反思必须 ≥ 30 字\n\n'
+        '【不通过的情况】\n'
+        '- 空白、纯标点、不足 30 字\n'
+        '- 仅复述任务标题或描述，无个人思考\n'
+        '- 泛泛而谈，未提及任务中的任何具体知识点\n'
+        '- 与任务主题完全无关\n'
+        '- 敷衍重复（如同一句话重复多次）\n\n'
+        '【评判要求】\n'
+        '- 你必须先在 feedback 中指出用户反思中提到的具体知识点（如果有），再给出是否通过的判断\n'
+        '- 如果反思没有提及任务相关的知识点，必须判为不通过\n'
+        '- 同一段反思用于不同任务时，只能通过与其内容真正相关的任务\n\n'
+        '【输出格式】只输出以下 JSON，不要其他文字：\n'
         '```json\n'
         '{\n'
         '  "passed": true,\n'
-        '  "feedback": "鼓励性反馈",\n'
-        '  "suggestion": "改进建议"\n'
+        '  "score": 80,\n'
+        '  "relevance": "相关/不相关",\n'
+        '  "matched_points": ["用户反思中匹配到的知识点1", "知识点2"],\n'
+        '  "feedback": "先指出匹配的知识点，再给鼓励性反馈",\n'
+        '  "suggestion": "具体的改进建议"\n'
         '}\n'
         '```';
 
