@@ -252,6 +252,50 @@ JSON 格式：
     return buf.toString();
   }
 
+  /// 检测文本是否看起来像搜索关键词而非正常对话回复
+  ///
+  /// 搜索关键词的特征：
+  /// - 较短（通常 < 60 字符）
+  /// - 缺少正常句子的标点（句号、问号、感叹号、逗号）
+  /// - 包含多个关键词堆砌（数字年份、技术名词等）
+  /// - 没有完整的句子结构
+  ///
+  /// 用于防御 DeepSeek 模型在 tool_calls 时误把搜索查询词作为 content 返回
+  static bool _looksLikeSearchQuery(String text) {
+    final trimmed = text.trim();
+
+    // 空文本或正常长度的回复不视为搜索词
+    if (trimmed.isEmpty || trimmed.length > 80) return false;
+
+    // 包含 JSON 代码块标记的不视为搜索词（可能是计划）
+    if (trimmed.contains('```') || trimmed.contains('{')) return false;
+
+    // 包含正常句子标点的不视为搜索词
+    // （搜索词通常没有句号、问号、感叹号、冒号后接空格等）
+    if (RegExp(r'[。？！\n]').hasMatch(trimmed)) return false;
+
+    // 检测搜索词特征：
+    // 1. 包含数字年份（如 2025、2026）
+    // 2. 包含"免费"、"推荐"、"教程"、"最佳"等 SEO 词汇
+    // 3. 多个技术名词或英文单词堆砌（无语法连接词）
+    final hasYear = RegExp(r'\b20\d{2}\b').hasMatch(trimmed);
+    final hasSeoWords = ['免费', '推荐', '教程', '最佳', '入门', '初学者', '新手']
+        .any((w) => trimmed.contains(w));
+    final wordCount = RegExp(r'[a-zA-Z]{2,}').allMatches(trimmed).length;
+
+    // 如果包含年份 + SEO 词汇，很可能是搜索词
+    if (hasYear && hasSeoWords) return true;
+
+    // 如果包含多个英文单词堆砌（≥3个）且没有中文语法连接词
+    if (wordCount >= 3 && hasSeoWords) {
+      final hasConnectors = ['的', '是', '和', '与', '请', '我', '你', '这']
+          .any((w) => trimmed.contains(w));
+      if (!hasConnectors) return true;
+    }
+
+    return false;
+  }
+
   /// 清理 AI 回复中的特殊 token 和标记
   ///
   /// DeepSeek 等模型可能在回复中泄漏内部 token，如：
@@ -610,7 +654,13 @@ JSON 格式：
 
       // 没有 tool_calls，或当前轮不允许工具 → 返回最终内容
       if (toolCalls == null || toolCalls.isEmpty || !allowTools) {
-        return _cleanResponse(message['content'] as String? ?? '');
+        final content = _cleanResponse(message['content'] as String? ?? '');
+        // 防御：如果返回的内容看起来像搜索关键词（无标点、关键词堆砌），
+        // 说明 AI 误把搜索查询词作为回复，返回友好提示代替
+        if (_looksLikeSearchQuery(content)) {
+          return '抱歉，搜索服务出现异常。请直接告诉我你的学习目标和基础情况，我会基于专业知识为你生成计划。';
+        }
+        return content;
       }
 
       // 有 tool_calls：执行搜索并将结果返回给 AI
