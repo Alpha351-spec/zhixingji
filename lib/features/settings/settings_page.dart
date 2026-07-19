@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/settings_service.dart';
+import '../../core/services/white_noise_generator.dart';
 import '../../data/models/app_settings.dart';
-import 'noise_test_page.dart';
 
 /// 设置页
 ///
@@ -18,17 +18,39 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   late AppSettings _settings;
 
+  // 白噪音试听播放器（用于选项弹窗中的试听）
+  final WhiteNoiseGenerator _previewPlayer = WhiteNoiseGenerator();
+  String? _previewingType; // 当前正在试听的类型
+
   // 选项常量
   static const List<String> _resourceModeOptions = ['纯净模式', '引导模式', '资源模式'];
   static const List<String> _planDetailOptions = ['精简', '标准', '详细'];
   static const List<String> _focusDurationOptions = ['15', '25', '45'];
-  static const List<String> _noiseTypeOptions = ['雨声', '森林', '咖啡馆', '篝火', '纯白噪音'];
+  static const List<String> _noiseTypeOptions = ['雨声', '森林', '篝火', '纯白噪音'];
   static const List<String> _weekdayNames = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
 
   @override
   void initState() {
     super.initState();
     _settings = SettingsService.current;
+  }
+
+  @override
+  void dispose() {
+    _previewPlayer.dispose();
+    super.dispose();
+  }
+
+  /// 试听/停止试听某个白噪音类型
+  Future<void> _togglePreview(String type) async {
+    if (_previewingType == type) {
+      await _previewPlayer.stop();
+      setState(() => _previewingType = null);
+    } else {
+      // 如果已有其他在播放，先停止（stop 是异步淡出，这里直接换源）
+      await _previewPlayer.start(type);
+      setState(() => _previewingType = type);
+    }
   }
 
   Future<void> _update(AppSettings newSettings) async {
@@ -205,39 +227,11 @@ class _SettingsPageState extends State<SettingsPage> {
                       value: _settings.whiteNoiseType,
                       options: _noiseTypeOptions,
                       onSelected: (v) => _update(_settings.copyWith(whiteNoiseType: v)),
+                      onPreview: _togglePreview,
+                      previewingValue: _previewingType,
                     ),
                   ],
                 ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // 白噪音测试入口
-            SizedBox(
-              width: double.infinity,
-              child: OutlinedButton(
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  side: const BorderSide(color: AppColors.borderButton),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (_) => const NoiseTestPage()),
-                  );
-                },
-                child: const Text(
-                  '测试白噪音效果',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.accent,
-                    fontWeight: FontWeight.w500,
-                  ),
-                ),
               ),
             ),
 
@@ -272,14 +266,26 @@ class _SettingsPageState extends State<SettingsPage> {
   }
 
   /// 单选行
+  ///
+  /// [onPreview] 和 [previewingValue] 用于白噪音试听：传入后选项弹窗中每项
+  /// 右侧会显示一个试听按钮，点击切换播放/停止。
   Widget _selectRow({
     required String label,
     required String value,
     required List<String> options,
     required ValueChanged<String> onSelected,
+    ValueChanged<String>? onPreview,
+    String? previewingValue,
   }) {
     return InkWell(
-      onTap: () => _showOptionSheet(label, options, value, onSelected),
+      onTap: () => _showOptionSheet(
+        label,
+        options,
+        value,
+        onSelected,
+        onPreview: onPreview,
+        previewingValue: previewingValue,
+      ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
@@ -460,8 +466,10 @@ class _SettingsPageState extends State<SettingsPage> {
     String title,
     List<String> options,
     String current,
-    ValueChanged<String> onSelected,
-  ) {
+    ValueChanged<String> onSelected, {
+    ValueChanged<String>? onPreview,
+    String? previewingValue,
+  }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: AppColors.white,
@@ -469,65 +477,125 @@ class _SettingsPageState extends State<SettingsPage> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
       ),
       builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                child: Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ),
-              const Divider(height: 1, thickness: 0.5),
-              ...options.map((opt) {
-                final isSelected = opt == current;
-                return InkWell(
-                  onTap: () {
-                    onSelected(opt);
-                    Navigator.of(context).pop();
-                  },
-                  child: Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 14),
-                    child: Row(
-                      children: [
-                        Text(
-                          opt,
-                          style: TextStyle(
-                            fontSize: 15,
-                            color: isSelected
-                                ? AppColors.accent
-                                : AppColors.textPrimary,
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.w400,
-                          ),
-                        ),
-                        const Spacer(),
-                        if (isSelected)
-                          const Icon(
-                            Icons.check,
-                            size: 18,
-                            color: AppColors.accent,
-                          ),
-                      ],
+        // 弹窗内独立的试听状态，与外部 _previewingType 同步
+        var localPreviewing = previewingValue;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
                     ),
                   ),
-                );
-              }),
-              const SizedBox(height: 8),
-            ],
-          ),
+                  const Divider(height: 1, thickness: 0.5),
+                  ...options.map((opt) {
+                    final isSelected = opt == current;
+                    final isPreviewing = localPreviewing == opt;
+                    return InkWell(
+                      onTap: () {
+                        onSelected(opt);
+                        Navigator.of(context).pop();
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 20, vertical: 14),
+                        child: Row(
+                          children: [
+                            Text(
+                              opt,
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: isSelected
+                                    ? AppColors.accent
+                                    : AppColors.textPrimary,
+                                fontWeight: isSelected
+                                    ? FontWeight.w600
+                                    : FontWeight.w400,
+                              ),
+                            ),
+                            const Spacer(),
+                            // 试听按钮（仅当 onPreview 不为 null 时显示）
+                            if (onPreview != null) ...[
+                              GestureDetector(
+                                onTap: () {
+                                  onPreview(opt);
+                                  setModalState(() {
+                                    // 切换试听状态：点正在播放的 → 停止；点其他的 → 换源
+                                    localPreviewing =
+                                        localPreviewing == opt ? null : opt;
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 12, vertical: 6),
+                                  decoration: BoxDecoration(
+                                    color: isPreviewing
+                                        ? AppColors.accent.withValues(alpha: 0.1)
+                                        : AppColors.transparent,
+                                    borderRadius: BorderRadius.circular(16),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        isPreviewing
+                                            ? Icons.stop
+                                            : Icons.play_arrow,
+                                        size: 16,
+                                        color: isPreviewing
+                                            ? AppColors.accent
+                                            : AppColors.textTertiary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        isPreviewing ? '停止' : '试听',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: isPreviewing
+                                              ? AppColors.accent
+                                              : AppColors.textTertiary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ],
+                            if (isSelected)
+                              const Icon(
+                                Icons.check,
+                                size: 18,
+                                color: AppColors.accent,
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                  const SizedBox(height: 8),
+                ],
+              ),
+            );
+          },
         );
       },
-    );
+    ).then((_) {
+      // 弹窗关闭时停止试听
+      if (_previewingType != null) {
+        _togglePreview(_previewingType!);
+      }
+    });
   }
 
   void _showMultiSelectSheet(

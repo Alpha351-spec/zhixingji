@@ -46,6 +46,7 @@ flutter:
   assets:
     - assets/images/
     - assets/fonts/
+    - assets/music/
 
   fonts:
     # 思源黑体（Noto Sans SC）— 卡片标题、正文、辅助文字

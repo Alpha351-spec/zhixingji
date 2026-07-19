@@ -41,7 +41,7 @@ class AppSettings {
   /// 专注白噪音
   final bool whiteNoise;
 
-  /// 白噪音类型：雨声 / 森林 / 咖啡馆 / 篝火 / 纯白噪音
+  /// 白噪音类型：雨声 / 森林 / 篝火 / 纯白噪音
   final String whiteNoiseType;
 
   const AppSettings({
