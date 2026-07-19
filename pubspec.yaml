@@ -33,8 +33,7 @@ dependencies:
 
   # 实时音频合成（白噪音生成器）—— just_audio + Windows 实现
   just_audio: ^0.10.5
-  just_audio_media_kit: ^2.0.3
-  media_kit_libs_windows_audio: ^1.0.3
+  just_audio_windows: ^0.2.3
 
 dev_dependencies:
   flutter_test:
