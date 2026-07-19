@@ -96,6 +96,8 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _update(AppSettings newSettings) async {
     setState(() => _settings = newSettings);
     await SettingsService.save(newSettings);
+    // 设置修改后静默触发云端同步
+    SyncService.triggerAutoSync();
   }
 
   @override

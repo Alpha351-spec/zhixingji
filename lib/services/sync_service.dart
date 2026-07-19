@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../core/services/settings_service.dart';
 import '../data/database/database_helper.dart';
 import 'supabase_service.dart';
+import 'user_service.dart';
 
 /// 数据同步服务 —— 协调本地 SQLite 和云端 Supabase 数据
 ///
@@ -19,6 +21,9 @@ class SyncService {
 
   /// 是否正在同步（防止重复触发）
   static bool _isSyncing = false;
+
+  /// 自动同步防抖定时器（5 秒内多次触发只执行一次）
+  static Timer? _debounceTimer;
 
   // ============ 同步方法 ============
 
@@ -130,6 +135,17 @@ class SyncService {
     } catch (e) {
       print('[SyncService] restoreFromCloud 失败: $e');
     }
+  }
+
+  /// 便捷触发自动同步（带 5 秒防抖）
+  ///
+  /// 适合在计划生成、打卡完成、设置修改后调用。
+  /// 5 秒内多次触发只会执行一次真正的同步，避免频繁请求。
+  static void triggerAutoSync() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 5), () {
+      autoSync(UserService.userId);
+    });
   }
 
   /// 自动同步（在 Wi-Fi 环境下静默调用 syncAll）
