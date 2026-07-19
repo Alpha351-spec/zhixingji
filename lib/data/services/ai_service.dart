@@ -187,6 +187,19 @@ JSON 格式：
     return estimatedTokens.clamp(3000, 8000);
   }
 
+  /// 根据每日任务数动态计算请求超时时间
+  ///
+  /// 多任务计划生成需要更多时间，按 max_tokens 估算：
+  /// - 基础 60 秒
+  /// - 每 1000 tokens 增加 10 秒
+  /// - 上限 180 秒（3 分钟）
+  static Duration get _dynamicTimeout {
+    final maxTokens = _dynamicMaxTokens;
+    final extraSeconds = (maxTokens / 1000).floor() * 10;
+    final totalSeconds = (60 + extraSeconds).clamp(60, 180);
+    return Duration(seconds: totalSeconds);
+  }
+
   /// 构建用户学习偏好提示词片段（注入到系统提示词中）
   ///
   /// 将设置页中的 AI 相关设置项（每日任务数、计划详细程度、每周休息日）
@@ -580,7 +593,7 @@ JSON 格式：
             },
             body: jsonEncode(requestBody),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(_dynamicTimeout);
 
       if (response.statusCode != 200) {
         final errorBody = jsonDecode(response.body);
@@ -655,7 +668,7 @@ JSON 格式：
             'tool_choice': 'none',
           }),
         )
-        .timeout(const Duration(seconds: 60));
+        .timeout(_dynamicTimeout);
 
     if (fallbackResponse.statusCode == 200) {
       final data = jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
@@ -724,7 +737,7 @@ $feedback
             },
             body: jsonEncode(requestBody),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(_dynamicTimeout);
 
       if (response.statusCode != 200) {
         final errorBody = jsonDecode(response.body);
@@ -795,7 +808,7 @@ $feedback
             'tool_choice': 'none',
           }),
         )
-        .timeout(const Duration(seconds: 60));
+        .timeout(_dynamicTimeout);
 
     if (fallbackResponse.statusCode == 200) {
       final data = jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
@@ -993,7 +1006,7 @@ $feedback
             },
             body: jsonEncode(requestBody),
           )
-          .timeout(const Duration(seconds: 60));
+          .timeout(_dynamicTimeout);
 
       if (response.statusCode != 200) {
         final errorBody = jsonDecode(response.body);
@@ -1064,7 +1077,7 @@ $feedback
             'tool_choice': 'none',
           }),
         )
-        .timeout(const Duration(seconds: 60));
+        .timeout(_dynamicTimeout);
 
     if (fallbackResponse.statusCode == 200) {
       final data = jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
