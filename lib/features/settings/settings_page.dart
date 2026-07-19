@@ -76,14 +76,14 @@ class _SettingsPageState extends State<SettingsPage> {
                   ),
                   _divider(),
 
-                  // 每日任务数量上限（滑块）
+                  // 每日任务数（滑块）
                   _sliderRow(
-                    label: '每日任务数量上限',
+                    label: '每日任务数',
                     value: _settings.dailyTaskLimit.toDouble(),
-                    min: 3,
+                    min: 2,
                     max: 8,
-                    divisions: 5,
-                    valueLabel: '${_settings.dailyTaskLimit}',
+                    divisions: 6,
+                    valueLabel: '${_settings.dailyTaskLimit} 个/天',
                     onChanged: (v) => _update(_settings.copyWith(dailyTaskLimit: v.round())),
                   ),
                   _divider(),
