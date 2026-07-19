@@ -1,6 +1,7 @@
 ﻿import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/constants/app_constants.dart';
+import '../../core/services/settings_service.dart';
 import '../models/task.dart';
 
 /// DeepSeek AI 服务（开发文档第6节）
@@ -160,6 +161,37 @@ JSON 格式：
   static String get _todayStr {
     final now = DateTime.now();
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+  }
+
+  /// 构建用户学习偏好提示词片段（注入到系统提示词中）
+  ///
+  /// 将设置页中的 AI 相关设置项（每日任务上限、计划详细程度、每周休息日）
+  /// 拼接到系统提示词，让 AI 生成的计划遵循用户偏好
+  static String get _userPrefsPrompt {
+    final s = SettingsService.current;
+    final buf = StringBuffer('\n\n## 重要：用户学习偏好（必须遵守）\n');
+
+    // 每日任务上限
+    buf.writeln('- 每天最多安排 ${s.dailyTaskLimit} 个任务，不要超出此数量');
+
+    // 计划详细程度
+    switch (s.planDetailLevel) {
+      case '精简':
+        buf.writeln('- 任务描述要精简：每条 1-2 句话，只说做什么，不说为什么');
+      case '详细':
+        buf.writeln('- 任务描述要详细：每条 3-4 句话，包含做什么、怎么做、注意事项');
+      default:
+        buf.writeln('- 任务描述长度适中：每条 2-3 句话，说清做什么和关键方法');
+    }
+
+    // 每周休息日
+    if (s.restDays.isNotEmpty) {
+      const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+      final names = s.restDays.map((d) => dayNames[d]).join('、');
+      buf.writeln('- 每周 $names 是休息日，这些天不安排学习任务');
+    }
+
+    return buf.toString();
   }
 
   /// 清理 AI 回复中的特殊 token 和标记
@@ -467,7 +499,7 @@ JSON 格式：
   /// 联网搜索策略：仅第1轮允许 tool_calls，之后强制 tool_choice='none'
   static Future<String> chat(List<Map<String, String>> messages) async {
     final promptWithDate =
-        '$_systemPromptBase\n\n## 重要：当前日期\n今天是 $_todayStr。计算截止日期剩余天数时请以此为准。';
+        '$_systemPromptBase$_userPrefsPrompt\n\n## 重要：当前日期\n今天是 $_todayStr。计算截止日期剩余天数时请以此为准。';
 
     // 构建消息列表（类型为 List<Map<String, dynamic>> 以支持 tool_calls）
     final allMessages = <Map<String, dynamic>>[
@@ -600,7 +632,7 @@ JSON 格式：
     required String feedback,
   }) async {
     final renewPromptWithDate =
-        '$renewSystemPrompt\n\n## 重要：当前日期\n今天是 $_todayStr。';
+        '$renewSystemPrompt$_userPrefsPrompt\n\n## 重要：当前日期\n今天是 $_todayStr。';
 
     final userContent = '''
 ## 原始诊断
