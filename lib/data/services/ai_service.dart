@@ -92,13 +92,23 @@ JSON 必须放在 ```json 代码块中，格式如下：
     "tasks": [
       {
         "day": 1,
-        "title": "任务标题",
+        "title": "任务1标题",
         "description": "任务详细描述",
         "resource_keywords": "资源搜索关键词",
         "encouragement": "鼓励语",
         "completed": 0,
         "focus_minutes": 0,
         "verification_type": "quiz"
+      },
+      {
+        "day": 1,
+        "title": "任务2标题（同一天可有多个任务，day 字段相同）",
+        "description": "任务详细描述",
+        "resource_keywords": "资源搜索关键词",
+        "encouragement": "鼓励语",
+        "completed": 0,
+        "focus_minutes": 0,
+        "verification_type": "reflection"
       }
     ]
   }
@@ -107,8 +117,8 @@ JSON 必须放在 ```json 代码块中，格式如下：
 
 ## 注意事项
 - 在未收集到足够信息前，只进行自然对话，不要输出 JSON
-- tasks 的 day 字段为 1-7，同一天可以有多个任务（day 字段相同）
-- 每天任务数量由"用户学习偏好"决定，不要超出每日任务上限
+- tasks 的 day 字段为 1-7，同一天必须有多个任务（day 字段相同），具体数量见"用户学习偏好"
+- 必须严格遵守"用户学习偏好"中指定的每日任务数量，不能少安排
 - 如果有截止日期，total_days = 从今天到截止日期的天数
 - 如果无截止日期，total_days = 用户选择的周期（14/30/60/90/120）
 - 鼓励语要简短有温度
@@ -171,50 +181,40 @@ JSON 格式：
   /// 将设置页中的 AI 相关设置项（每日任务上限、计划详细程度、每周休息日）
   /// 拼接到系统提示词，让 AI 生成的计划遵循用户偏好。
   ///
-  /// 任务数量与详细程度的关联策略：
-  /// - 精简：描述短，每天可安排较多任务（上限内）
-  /// - 标准：描述适中，每天安排中等数量任务
-  /// - 详细：描述长，每天安排较少任务（聚焦深度）
+  /// 核心策略：
+  /// - dailyTaskLimit 作为每天任务数量的目标值（必须达到）
+  /// - planDetailLevel 只控制每条任务描述的长度
   static String get _userPrefsPrompt {
     final s = SettingsService.current;
-    final buf = StringBuffer('\n\n## 重要：用户学习偏好（必须遵守）\n');
+    final buf = StringBuffer('\n\n## 重要：用户学习偏好（必须遵守，不可违反）\n');
 
-    // 根据详细程度确定建议的每日任务数量范围
-    int minTasksPerDay;
-    int maxTasksPerDay;
-    String detailDesc;
+    // 每日任务数量：直接用 dailyTaskLimit 作为目标值
+    // 要求 AI 每天必须安排这个数量的任务（允许浮动，但不能少于）
+    final targetCount = s.dailyTaskLimit;
+    buf.writeln('### 每日任务数量（强制要求）');
+    buf.writeln('- 每天必须安排 $targetCount 个任务（这是用户设定的目标值）');
+    buf.writeln('- 7天总计应生成 ${targetCount * 7} 个任务（如果某天是休息日则该天不安排）');
+    buf.writeln('- 同一天的任务 day 字段相同，例如 day=1 的任务有 $targetCount 个');
+    buf.writeln('- 任务总数不能少于 $targetCount × 7 = ${targetCount * 7}');
+    buf.writeln('- 每个任务应有不同的 title，覆盖该天学习内容的不同方面');
 
+    // 计划详细程度：只控制描述长度
+    buf.writeln('\n### 计划详细程度');
     switch (s.planDetailLevel) {
       case '精简':
-        // 精简模式：每个任务描述短（1-2句），可以安排更多任务
-        minTasksPerDay = 2;
-        detailDesc = '任务描述要精简：每条 1-2 句话，只说做什么，不说为什么';
-        break;
+        buf.writeln('- 任务描述要精简：每条 1-2 句话，只说做什么，不说为什么');
       case '详细':
-        // 详细模式：每个任务描述长（3-4句），聚焦深度，任务少
-        minTasksPerDay = 1;
-        detailDesc = '任务描述要详细：每条 3-4 句话，包含做什么、怎么做、注意事项';
-        break;
+        buf.writeln('- 任务描述要详细：每条 3-4 句话，包含做什么、怎么做、注意事项');
       default:
-        // 标准模式：中等
-        minTasksPerDay = 1;
-        detailDesc = '任务描述长度适中：每条 2-3 句话，说清做什么和关键方法';
+        buf.writeln('- 任务描述长度适中：每条 2-3 句话，说清做什么和关键方法');
     }
-
-    // 每日任务上限作为硬性约束，不能超过
-    // 建议数量 = min(详细程度推荐的上限, 用户设置的上限)
-    maxTasksPerDay = minTasksPerDay + 1;
-    final actualMax = maxTasksPerDay.clamp(1, s.dailyTaskLimit);
-
-    buf.writeln('- 每天安排 $minTasksPerDay-$actualMax 个任务');
-    buf.writeln('  - 每日任务上限：${s.dailyTaskLimit}（绝对不能超过）');
-    buf.writeln('  - $detailDesc');
 
     // 每周休息日
     if (s.restDays.isNotEmpty) {
       const dayNames = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
       final names = s.restDays.map((d) => dayNames[d]).join('、');
-      buf.writeln('- 每周 $names 是休息日，这些天不安排学习任务');
+      buf.writeln('\n### 每周休息日');
+      buf.writeln('- 每周 $names 是休息日，这些天不安排任务（day 字段跳过这些天）');
     }
 
     return buf.toString();
