@@ -94,7 +94,19 @@ CREATE POLICY "Allow all for anon" ON user_settings FOR ALL USING (true) WITH CH
 -- ============================================================
 -- 索引（提升查询性能）
 -- ============================================================
-CREATE INDEX idx_plans_user_id ON plans(user_id);
-CREATE INDEX idx_tasks_plan_id ON tasks(plan_id);
-CREATE INDEX idx_checkins_user_plan ON checkins(user_id, plan_id);
-CREATE INDEX idx_verification_user ON verification_records(user_id);
+CREATE INDEX IF NOT EXISTS idx_plans_user_id ON plans(user_id);
+CREATE INDEX IF NOT EXISTS idx_tasks_plan_id ON tasks(plan_id);
+CREATE INDEX IF NOT EXISTS idx_checkins_user_plan ON checkins(user_id, plan_id);
+CREATE INDEX IF NOT EXISTS idx_verification_user ON verification_records(user_id);
+
+-- ============================================================
+-- 权限授权（关键！确保 anon 角色可操作所有表）
+-- Supabase 默认启用了 RLS，但新项目需要显式授权
+-- ============================================================
+
+-- 方式一：通过 RLS 策略（已在上方设置）
+-- 方式二：直接授权 anon 角色（更可靠，推荐开发阶段使用）
+GRANT USAGE ON SCHEMA public TO anon;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
+GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon;
