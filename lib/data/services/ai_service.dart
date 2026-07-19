@@ -165,20 +165,34 @@ JSON 格式：
   /// 清理 AI 回复中的特殊 token 和标记
   ///
   /// DeepSeek 等模型可能在回复中泄漏内部 token，如：
-  /// - <|begin▁of▁sentence|>、<|end▁of▁sentence|>
-  /// - <| | DSML | |>
+  /// - <|begin▁of▁sentence|>、<|end▁of▁sentence|>（以 |>| 结尾）
+  /// - <| | DSML | | tool_calls>...</| | DSML | | tool_calls>（DSML 工具调用块）
   /// - <｜tool▁calls▁begin｜> 等全角竖线格式
   /// 这些标记对用户无意义，需要过滤
   static String _cleanResponse(String text) {
     var cleaned = text;
-    // 过滤 <|...|> 格式的 token（半角竖线）
-    cleaned = cleaned.replaceAll(RegExp(r'<\|[^>]*\|>'), '');
-    // 过滤 <｜...｜> 格式的 token（全角竖线）
-    cleaned = cleaned.replaceAll(RegExp(r'<｜[^>]*｜>'), '');
-    // 过滤孤立的 < 或 > 包裹的标记
-    cleaned = cleaned.replaceAll(RegExp(r'<\s*\|\s*\|>'), '');
-    // 清理多余的空行（特殊 token 过滤后可能留下）
+
+    // 1. 移除完整的 DSML tool_calls 块（从开标签到闭标签，包含中间所有内容）
+    //    格式：<| | DSML | | tool_calls> ... </| | DSML | | tool_calls>
+    cleaned = cleaned.replaceAll(
+      RegExp(r'<\|[^>]*tool_calls>[\s\S]*?</\|[^>]*tool_calls>'),
+      '',
+    );
+
+    // 2. 移除所有剩余的 <|...> 和 </|...> 格式标签（半角竖线）
+    //    匹配 <|begin▁of▁sentence|>、<| | DSML | | invoke>、</| | DSML | | invoke> 等
+    cleaned = cleaned.replaceAll(RegExp(r'<\/?\|[^>]*>'), '');
+
+    // 3. 移除 <｜...｜> 和 </｜...｜> 格式的 token（全角竖线）
+    cleaned = cleaned.replaceAll(RegExp(r'<\/?｜[^>]*>'), '');
+
+    // 4. 清理多余的空行（特殊 token 过滤后可能留下）
     cleaned = cleaned.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+
+    // 5. 清理行首行尾的空白行
+    cleaned = cleaned.replaceAll(RegExp(r'^\s*\n'), '');
+    cleaned = cleaned.replaceAll(RegExp(r'\n\s*$'), '');
+
     return cleaned.trim();
   }
 
