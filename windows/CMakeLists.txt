@@ -82,6 +82,11 @@ target_link_libraries(${BINARY_NAME} PRIVATE app_links_plugin)
 list(APPEND PLUGIN_BUNDLED_LIBRARIES $<TARGET_FILE:app_links_plugin>)
 list(APPEND PLUGIN_BUNDLED_LIBRARIES ${app_links_bundled_libraries})
 
+# flutter_local_notifications_windows（本地通知，Windows Toast Notifications）
+add_subdirectory("C:/Users/h2275/AppData/Local/Pub/Cache/hosted/pub.dev/flutter_local_notifications_windows-3.1.1/windows" plugins/flutter_local_notifications_windows)
+list(APPEND PLUGIN_BUNDLED_LIBRARIES $<TARGET_FILE:flutter_local_notifications_windows>)
+list(APPEND PLUGIN_BUNDLED_LIBRARIES ${flutter_local_notifications_windows_bundled_libraries})
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

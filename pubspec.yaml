@@ -40,6 +40,8 @@ dependencies:
 
   # 网络状态检测（用于自动同步判断 Wi-Fi 环境）
   connectivity_plus: ^6.0.3
+  flutter_local_notifications: ^22.1.0
+  timezone: ^0.11.1
 
 dev_dependencies:
   flutter_test:

@@ -7,6 +7,7 @@ import '../../data/models/app_settings.dart';
 import '../../services/supabase_config.dart';
 import '../../services/user_service.dart';
 import '../../services/sync_service.dart';
+import '../../services/notification_service.dart';
 
 /// 设置页
 ///
@@ -96,6 +97,16 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _update(AppSettings newSettings) async {
     setState(() => _settings = newSettings);
     await SettingsService.save(newSettings);
+
+    // 通知设置变更后重新调度
+    await NotificationService.applySettings(
+      dailyReminder: newSettings.dailyReminder,
+      dailyReminderTime: newSettings.dailyReminderTime,
+      pomodoroNotification: newSettings.pomodoroNotification,
+      planRenewalReminder: newSettings.planRenewalReminder,
+      streakWarning: newSettings.streakWarning,
+    );
+
     // 设置修改后静默触发云端同步
     SyncService.triggerAutoSync();
   }

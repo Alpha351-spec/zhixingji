@@ -8,6 +8,7 @@ import 'core/services/user_profile_service.dart';
 import 'services/supabase_config.dart';
 import 'services/user_service.dart';
 import 'services/sync_service.dart';
+import 'services/notification_service.dart';
 import 'app.dart';
 
 /// 知行计 - 应用入口
@@ -43,7 +44,20 @@ void main() async {
   // 8. 初始化番茄钟软锁屏服务
   LockScreenService.init();
 
-  // 9. 首次启动且本地无数据时，从云端恢复（换机场景）
+  // 9. 初始化通知服务并请求权限
+  await NotificationService.init();
+
+  // 10. 按当前设置调度通知
+  final settings = SettingsService.current;
+  await NotificationService.applySettings(
+    dailyReminder: settings.dailyReminder,
+    dailyReminderTime: settings.dailyReminderTime,
+    pomodoroNotification: settings.pomodoroNotification,
+    planRenewalReminder: settings.planRenewalReminder,
+    streakWarning: settings.streakWarning,
+  );
+
+  // 11. 首次启动且本地无数据时，从云端恢复（换机场景）
   if (SupabaseConfig.isConfigured) {
     final hasLocalData = await SyncService.hasLocalData();
     if (!hasLocalData) {
