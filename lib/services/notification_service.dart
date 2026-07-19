@@ -76,8 +76,8 @@ class NotificationService {
 
   /// 获取 Windows 通知 GUID（开发环境用占位符）
   static String _getGuid() {
-    // 开发阶段使用固定 GUID
-    return '{00000000-0000-0000-0000-000000000001}';
+    // 开发阶段使用占位 GUID（打包 MSIX 时需替换为真实值）
+    return '00000000-0000-0000-0000-000000000001';
   }
 
   /// 请求系统通知权限
