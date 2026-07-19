@@ -21,11 +21,22 @@ class ReflectionView extends StatefulWidget {
 class _ReflectionViewState extends State<ReflectionView> {
   final TextEditingController _controller = TextEditingController();
   final int _minChars = 30;
+  bool _submitting = false;
 
   @override
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  /// 提交反思：延迟到下一帧执行 pop，避免在 build 周期中触发 Navigator 锁冲突
+  void _submit() {
+    if (_submitting) return;
+    _submitting = true;
+    final text = _controller.text.trim();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.of(context).pop(text);
+    });
   }
 
   @override
@@ -116,9 +127,7 @@ class _ReflectionViewState extends State<ReflectionView> {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: canSubmit
-                        ? () => Navigator.of(context).pop(_controller.text.trim())
-                        : null,
+                    onPressed: canSubmit ? _submit : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       foregroundColor: Colors.white,
