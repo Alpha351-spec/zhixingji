@@ -66,7 +66,8 @@ class AIService {
 
 ## 重要：只生成7天任务
 
-无论用户的总周期多长，你只生成前7天的任务（day 1-7）。在生成计划后，告知用户："这是第一周的任务，完成本周后可以续订下一周的计划。"
+无论用户的总周期多长，你只生成前7天的任务（day 字段为 1-7）。在生成计划后，告知用户："这是第一周的任务，完成本周后可以续订下一周的计划。"
+每天可以有 1 到多个任务（具体数量见下方"用户学习偏好"），同一天的任务 day 字段相同。
 
 ## 输出规则
 
@@ -106,7 +107,8 @@ JSON 必须放在 ```json 代码块中，格式如下：
 
 ## 注意事项
 - 在未收集到足够信息前，只进行自然对话，不要输出 JSON
-- tasks 必须恰好7个，day 字段为 1-7
+- tasks 的 day 字段为 1-7，同一天可以有多个任务（day 字段相同）
+- 每天任务数量由"用户学习偏好"决定，不要超出每日任务上限
 - 如果有截止日期，total_days = 从今天到截止日期的天数
 - 如果无截止日期，total_days = 用户选择的周期（14/30/60/90/120）
 - 鼓励语要简短有温度
@@ -150,7 +152,8 @@ JSON 格式：
 ```
 
 ## 注意事项
-- tasks 必须恰好7个，day 字段为 1-7
+- tasks 的 day 字段为 1-7，同一天可以有多个任务（day 字段相同）
+- 每天任务数量由"用户学习偏好"决定，不要超出每日任务上限
 - 新任务应延续上周的进度，不要重复已完成的内容
 - 如果用户反馈"太难了"，适当降低难度；如果"太简单"，适当提升
 - 每个任务需标记 verification_type：理论学习/概念理解类用 "quiz"，实践/反思类用 "reflection"，运动/习惯养成类用 "none"
@@ -166,23 +169,46 @@ JSON 格式：
   /// 构建用户学习偏好提示词片段（注入到系统提示词中）
   ///
   /// 将设置页中的 AI 相关设置项（每日任务上限、计划详细程度、每周休息日）
-  /// 拼接到系统提示词，让 AI 生成的计划遵循用户偏好
+  /// 拼接到系统提示词，让 AI 生成的计划遵循用户偏好。
+  ///
+  /// 任务数量与详细程度的关联策略：
+  /// - 精简：描述短，每天可安排较多任务（上限内）
+  /// - 标准：描述适中，每天安排中等数量任务
+  /// - 详细：描述长，每天安排较少任务（聚焦深度）
   static String get _userPrefsPrompt {
     final s = SettingsService.current;
     final buf = StringBuffer('\n\n## 重要：用户学习偏好（必须遵守）\n');
 
-    // 每日任务上限
-    buf.writeln('- 每天最多安排 ${s.dailyTaskLimit} 个任务，不要超出此数量');
+    // 根据详细程度确定建议的每日任务数量范围
+    int minTasksPerDay;
+    int maxTasksPerDay;
+    String detailDesc;
 
-    // 计划详细程度
     switch (s.planDetailLevel) {
       case '精简':
-        buf.writeln('- 任务描述要精简：每条 1-2 句话，只说做什么，不说为什么');
+        // 精简模式：每个任务描述短（1-2句），可以安排更多任务
+        minTasksPerDay = 2;
+        detailDesc = '任务描述要精简：每条 1-2 句话，只说做什么，不说为什么';
+        break;
       case '详细':
-        buf.writeln('- 任务描述要详细：每条 3-4 句话，包含做什么、怎么做、注意事项');
+        // 详细模式：每个任务描述长（3-4句），聚焦深度，任务少
+        minTasksPerDay = 1;
+        detailDesc = '任务描述要详细：每条 3-4 句话，包含做什么、怎么做、注意事项';
+        break;
       default:
-        buf.writeln('- 任务描述长度适中：每条 2-3 句话，说清做什么和关键方法');
+        // 标准模式：中等
+        minTasksPerDay = 1;
+        detailDesc = '任务描述长度适中：每条 2-3 句话，说清做什么和关键方法';
     }
+
+    // 每日任务上限作为硬性约束，不能超过
+    // 建议数量 = min(详细程度推荐的上限, 用户设置的上限)
+    maxTasksPerDay = minTasksPerDay + 1;
+    final actualMax = maxTasksPerDay.clamp(1, s.dailyTaskLimit);
+
+    buf.writeln('- 每天安排 $minTasksPerDay-$actualMax 个任务');
+    buf.writeln('  - 每日任务上限：${s.dailyTaskLimit}（绝对不能超过）');
+    buf.writeln('  - $detailDesc');
 
     // 每周休息日
     if (s.restDays.isNotEmpty) {
@@ -803,7 +829,8 @@ JSON 格式：
 ```
 
 ## 注意事项
-- tasks 必须恰好7个，day 字段为 1-7
+- tasks 的 day 字段为 1-7，同一天可以有多个任务（day 字段相同）
+- 每天任务数量由"用户学习偏好"决定，不要超出每日任务上限
 - 目标 goal 保持不变
 - 只输出一次 JSON
 ''';
