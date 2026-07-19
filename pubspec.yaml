@@ -1,0 +1,88 @@
+name: xuejing
+description: "智学打卡 - 用AI对话诊断学习状况，生成个性化任务清单，结合番茄钟专注执行，完成每日打卡。"
+publish_to: "none"
+version: 0.2.0
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+  flutter: ">=3.10.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # 本地数据库（开发文档第5节：本地 SQLite）
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.3
+  path: ^1.8.3
+
+  # 网络请求（开发文档第6节：调用 DeepSeek-V4 API）
+  http: ^1.2.0
+
+  # 状态管理
+  provider: ^6.1.1
+
+  # 图标
+  cupertino_icons: ^1.0.6
+
+  # 本地存储辅助
+  shared_preferences: ^2.2.2
+
+  # 打开系统浏览器（反馈链接）
+  url_launcher: ^6.2.5
+
+  # 实时音频合成（白噪音生成器）
+  flutter_sound: ^9.2.13
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/fonts/
+
+  fonts:
+    # 思源黑体（Noto Sans SC）— 卡片标题、正文、辅助文字
+    - family: NotoSansSC
+      fonts:
+        - asset: assets/fonts/NotoSansSC-Light.otf
+          weight: 300
+        - asset: assets/fonts/NotoSansSC-Regular.otf
+          weight: 400
+        - asset: assets/fonts/NotoSansSC-Medium.otf
+          weight: 500
+
+    # 思源宋体（Noto Serif SC）— 大标题、页面标题
+    - family: NotoSerifSC
+      fonts:
+        - asset: assets/fonts/NotoSerifSC-Regular.otf
+          weight: 400
+        - asset: assets/fonts/NotoSerifSC-Medium.otf
+          weight: 500
+
+    # 保留旧字体族引用兼容
+    - family: SourceHanSansSC
+      fonts:
+        - asset: assets/fonts/SourceHanSansSC-Light.otf
+          weight: 300
+        - asset: assets/fonts/SourceHanSansSC-Regular.otf
+          weight: 400
+        - asset: assets/fonts/SourceHanSansSC-Medium.otf
+          weight: 500
+
+dependency_overrides:
+  url_launcher_android: 6.3.5
+  # 锁定 androidx 版本到兼容 AGP 8.7.3 的版本
+
+# 使用系统 SQLite 库，避免从 GitHub 下载预编译库（网络不通）
+hooks:
+  user_defines:
+    sqlite3:
+      source: system
+      name: sqlite3
+      name_windows: winsqlite3
