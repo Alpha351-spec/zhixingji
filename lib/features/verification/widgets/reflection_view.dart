@@ -96,32 +96,26 @@ class _ReflectionViewState extends State<ReflectionView> {
                   borderSide: const BorderSide(color: AppColors.accent, width: 1.5),
                 ),
               ),
-              onChanged: (_) => setState(() {}),
             ),
           ),
           const SizedBox(height: 12),
           // 字数统计 + 提交按钮
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              ValueListenableBuilder(
-                valueListenable: _controller,
-                builder: (context, TextValue value, _) {
-                  final count = value.text.trim().length;
-                  return Text(
+          ValueListenableBuilder<TextEditingValue>(
+            valueListenable: _controller,
+            builder: (context, value, _) {
+              final count = value.text.trim().length;
+              final canSubmit = count >= _minChars;
+              return Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
                     '$count / $_minChars 字',
                     style: TextStyle(
                       fontSize: 12,
-                      color: count >= _minChars ? AppColors.accent : AppColors.textTertiary,
+                      color: canSubmit ? AppColors.accent : AppColors.textTertiary,
                     ),
-                  );
-                },
-              ),
-              ValueListenableBuilder(
-                valueListenable: _controller,
-                builder: (context, TextValue value, _) {
-                  final canSubmit = value.text.trim().length >= _minChars;
-                  return ElevatedButton(
+                  ),
+                  ElevatedButton(
                     onPressed: canSubmit
                         ? () => Navigator.of(context).pop(_controller.text.trim())
                         : null,
@@ -131,10 +125,10 @@ class _ReflectionViewState extends State<ReflectionView> {
                       disabledBackgroundColor: AppColors.borderCard,
                     ),
                     child: const Text('提交反思'),
-                  );
-                },
-              ),
-            ],
+                  ),
+                ],
+              );
+            },
           ),
           const SizedBox(height: 16),
         ],
