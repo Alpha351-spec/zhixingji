@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:just_audio/just_audio.dart';
 
 /// 白噪音播放器 —— 播放 assets/music 下的预录音频，循环播放
@@ -18,12 +20,12 @@ class WhiteNoiseGenerator {
   /// 默认音量（最大音量的 45%）
   static const double defaultVolume = 0.45;
 
-  /// 中文类型名 → 资产文件路径
+  /// 中文类型名 → 资产文件路径（完整路径，含 assets/ 前缀）
   static const Map<String, String> typeToAsset = {
-    '雨声': 'music/rain ambience.mp3',
-    '森林': 'music/forest birds.mp3',
-    '篝火': 'music/campfire.mp3',
-    '纯白噪音': 'music/white noise.mp3',
+    '雨声': 'assets/music/rain ambience.mp3',
+    '森林': 'assets/music/forest birds.mp3',
+    '篝火': 'assets/music/campfire.mp3',
+    '纯白噪音': 'assets/music/white noise.mp3',
   };
 
   final AudioPlayer _player = AudioPlayer();
@@ -32,6 +34,9 @@ class WhiteNoiseGenerator {
   bool _isStopping = false;
   String _currentType = '雨声';
   Timer? _fadeTimer;
+
+  // 缓存已加载的音频字节（避免重复加载）
+  final Map<String, Uint8List> _cache = {};
 
   bool get isPlaying => _isPlaying;
   String get currentType => _currentType;
@@ -51,10 +56,13 @@ class WhiteNoiseGenerator {
     final assetPath = typeToAsset[type];
     if (assetPath == null) return;
 
+    // 从 rootBundle 读取音频字节（带缓存）
+    final bytes = await _loadAsset(assetPath);
+
     // 从音量 0 开始，避免突兀
     await _player.setVolume(0);
     await _player.setAudioSource(
-      AudioSource.asset(assetPath),
+      _WavAudioSource(bytes),
       initialPosition: Duration.zero,
     );
     await _player.setLoopMode(LoopMode.one);
@@ -80,7 +88,15 @@ class WhiteNoiseGenerator {
     _isPlaying = false;
   }
 
-  // ============ 音量渐变 ============
+  // ============ 内部实现 ============
+
+  /// 加载资产字节（带缓存）
+  Future<Uint8List> _loadAsset(String path) async {
+    if (_cache.containsKey(path)) return _cache[path]!;
+    final data = await rootBundle.load(path);
+    _cache[path] = data.buffer.asUint8List();
+    return _cache[path]!;
+  }
 
   /// 1 秒淡入：从 0 渐强到 defaultVolume
   void _fadeIn() {
@@ -118,5 +134,25 @@ class WhiteNoiseGenerator {
         timer.cancel();
       }
     });
+  }
+}
+
+/// 将内存中的音频字节流包装为 just_audio 的 AudioSource
+class _WavAudioSource extends StreamAudioSource {
+  final Uint8List _bytes;
+
+  _WavAudioSource(this._bytes);
+
+  @override
+  Future<StreamAudioResponse> request([int? start, int? end]) async {
+    start ??= 0;
+    end ??= _bytes.length;
+    return StreamAudioResponse(
+      sourceLength: _bytes.length,
+      contentLength: end - start,
+      offset: start,
+      stream: Stream.value(_bytes.sublist(start, end)),
+      contentType: 'audio/mpeg',
+    );
   }
 }

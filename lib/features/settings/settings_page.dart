@@ -511,6 +511,29 @@ class _SettingsPageState extends State<SettingsPage> {
                             horizontal: 20, vertical: 14),
                         child: Row(
                           children: [
+                            // 试听图标（仅当 onPreview 不为 null 时显示），放在选项名左边
+                            if (onPreview != null) ...[
+                              GestureDetector(
+                                onTap: () {
+                                  onPreview(opt);
+                                  setModalState(() {
+                                    // 切换试听状态：点正在播放的 → 停止；点其他的 → 换源
+                                    localPreviewing =
+                                        localPreviewing == opt ? null : opt;
+                                  });
+                                },
+                                child: Icon(
+                                  isPreviewing
+                                      ? Icons.graphic_eq
+                                      : Icons.volume_up_outlined,
+                                  size: 20,
+                                  color: isPreviewing
+                                      ? AppColors.accent
+                                      : AppColors.textTertiary,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                            ],
                             Text(
                               opt,
                               style: TextStyle(
@@ -524,54 +547,6 @@ class _SettingsPageState extends State<SettingsPage> {
                               ),
                             ),
                             const Spacer(),
-                            // 试听按钮（仅当 onPreview 不为 null 时显示）
-                            if (onPreview != null) ...[
-                              GestureDetector(
-                                onTap: () {
-                                  onPreview(opt);
-                                  setModalState(() {
-                                    // 切换试听状态：点正在播放的 → 停止；点其他的 → 换源
-                                    localPreviewing =
-                                        localPreviewing == opt ? null : opt;
-                                  });
-                                },
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 6),
-                                  decoration: BoxDecoration(
-                                    color: isPreviewing
-                                        ? AppColors.accent.withValues(alpha: 0.1)
-                                        : AppColors.transparent,
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        isPreviewing
-                                            ? Icons.stop
-                                            : Icons.play_arrow,
-                                        size: 16,
-                                        color: isPreviewing
-                                            ? AppColors.accent
-                                            : AppColors.textTertiary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        isPreviewing ? '停止' : '试听',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: isPreviewing
-                                              ? AppColors.accent
-                                              : AppColors.textTertiary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                            ],
                             if (isSelected)
                               const Icon(
                                 Icons.check,
