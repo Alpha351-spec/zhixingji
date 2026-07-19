@@ -35,6 +35,12 @@ dependencies:
   just_audio: ^0.10.5
   just_audio_windows: ^0.2.3
 
+  # 云端数据库（Supabase 后端服务）
+  supabase_flutter: ^2.15.4
+
+  # 网络状态检测（用于自动同步判断 Wi-Fi 环境）
+  connectivity_plus: ^6.0.3
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

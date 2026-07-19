@@ -70,6 +70,18 @@ list(APPEND PLUGIN_BUNDLED_LIBRARIES ${just_audio_windows_bundled_libraries})
 # 禁用 C4819 警告（文件编码问题），避免 /WX 导致构建失败
 target_compile_options(just_audio_windows_plugin PRIVATE /wd4819)
 
+# connectivity_plus（网络状态检测，用于自动同步判断 Wi-Fi 环境）
+add_subdirectory("C:/Users/h2275/AppData/Local/Pub/Cache/hosted/pub.dev/connectivity_plus-6.1.5/windows" plugins/connectivity_plus)
+target_link_libraries(${BINARY_NAME} PRIVATE connectivity_plus_plugin)
+list(APPEND PLUGIN_BUNDLED_LIBRARIES $<TARGET_FILE:connectivity_plus_plugin>)
+list(APPEND PLUGIN_BUNDLED_LIBRARIES ${connectivity_plus_bundled_libraries})
+
+# app_links（supabase_flutter 依赖，用于深度链接）
+add_subdirectory("C:/Users/h2275/AppData/Local/Pub/Cache/hosted/pub.dev/app_links-7.2.1/windows" plugins/app_links)
+target_link_libraries(${BINARY_NAME} PRIVATE app_links_plugin)
+list(APPEND PLUGIN_BUNDLED_LIBRARIES $<TARGET_FILE:app_links_plugin>)
+list(APPEND PLUGIN_BUNDLED_LIBRARIES ${app_links_bundled_libraries})
+
 
 # === Installation ===
 # Support files are copied into place next to the executable, so that it can

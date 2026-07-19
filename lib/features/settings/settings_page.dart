@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_text_styles.dart';
 import '../../core/services/settings_service.dart';
 import '../../core/services/white_noise_generator.dart';
 import '../../data/models/app_settings.dart';
+import '../../services/supabase_config.dart';
+import '../../services/user_service.dart';
+import '../../services/sync_service.dart';
 
 /// 设置页
 ///
@@ -21,6 +25,9 @@ class _SettingsPageState extends State<SettingsPage> {
   // 白噪音试听播放器（用于选项弹窗中的试听）
   final WhiteNoiseGenerator _previewPlayer = WhiteNoiseGenerator();
   String? _previewingType; // 当前正在试听的类型
+
+  // 同步状态
+  bool _isSyncing = false;
 
   // 选项常量
   static const List<String> _resourceModeOptions = ['纯净模式', '引导模式', '资源模式'];
@@ -51,6 +58,39 @@ class _SettingsPageState extends State<SettingsPage> {
       await _previewPlayer.start(type);
       setState(() => _previewingType = type);
     }
+  }
+
+  /// 手动触发云端同步
+  Future<void> _syncData() async {
+    if (!SupabaseConfig.isConfigured) {
+      _showSyncResult('云端未配置，无法同步');
+      return;
+    }
+    if (_isSyncing) return;
+
+    setState(() {
+      _isSyncing = true;
+    });
+
+    await SyncService.syncAll(UserService.userId);
+
+    if (mounted) {
+      setState(() {
+        _isSyncing = false;
+      });
+      _showSyncResult('数据同步完成');
+    }
+  }
+
+  /// 显示同步结果提示
+  void _showSyncResult(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _update(AppSettings newSettings) async {
@@ -235,6 +275,54 @@ class _SettingsPageState extends State<SettingsPage> {
               ),
             ),
 
+            const SizedBox(height: 8),
+
+            // ========== 四、数据管理 ==========
+            _sectionTitle('数据管理'),
+            Container(
+              color: AppColors.white,
+              child: Column(
+                children: [
+                  // 云端同步状态
+                  _listTile(
+                    icon: Icons.cloud_upload_outlined,
+                    iconColor: AppColors.accent,
+                    title: '同步数据到云端',
+                    trailing: _isSyncing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: AppColors.accent,
+                            ),
+                          )
+                        : Icon(
+                            Icons.chevron_right,
+                            color: AppColors.textTertiary,
+                            size: 20,
+                          ),
+                    onTap: _isSyncing ? null : _syncData,
+                  ),
+                  _divider(),
+                  // 用户码显示
+                  _listTile(
+                    icon: Icons.person_outline,
+                    iconColor: AppColors.textSecondary,
+                    title: '用户码',
+                    trailing: Text(
+                      UserService.userId,
+                      style: const TextStyle(
+                        fontSize: 14,
+                        color: AppColors.textTertiary,
+                        fontFamily: AppTextStyles.fontFamily,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             const SizedBox(height: 40),
           ],
         ),
@@ -262,6 +350,38 @@ class _SettingsPageState extends State<SettingsPage> {
     return const Padding(
       padding: EdgeInsets.only(left: 20),
       child: Divider(height: 1, thickness: 0.5, color: AppColors.borderCard),
+    );
+  }
+
+  /// 列表项（图标 + 标题 + 尾部组件）
+  Widget _listTile({
+    required IconData icon,
+    required Color iconColor,
+    required String title,
+    Widget? trailing,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+        child: Row(
+          children: [
+            Icon(icon, size: 22, color: iconColor),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 15,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            if (trailing != null) trailing,
+          ],
+        ),
+      ),
     );
   }
 

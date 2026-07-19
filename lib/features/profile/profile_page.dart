@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
-import '../../core/constants/app_constants.dart';
 import '../../core/services/user_profile_service.dart';
+import '../../services/user_service.dart';
 import 'about_page.dart';
 import 'edit_profile_page.dart';
 import '../settings/settings_page.dart';
@@ -137,6 +137,16 @@ class _ProfilePageState extends State<ProfilePage> {
                               ],
                             ),
                             const SizedBox(height: 6),
+                            // 用户码（只读，用于云端身份标识）
+                            Text(
+                              '用户码：${UserService.userId}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textTertiary,
+                                fontFamily: AppTextStyles.fontFamily,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
                             const Text(
                               '点击编辑个人资料',
                               style: TextStyle(
