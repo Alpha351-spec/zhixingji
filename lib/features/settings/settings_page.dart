@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/services/settings_service.dart';
 import '../../data/models/app_settings.dart';
+import 'noise_test_page.dart';
 
 /// 设置页
 ///
@@ -207,6 +208,36 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ],
                 ],
+              ),
+            ),
+
+            const SizedBox(height: 16),
+
+            // 白噪音测试入口
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  side: const BorderSide(color: AppColors.borderButton),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NoiseTestPage()),
+                  );
+                },
+                child: const Text(
+                  '测试白噪音效果',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.accent,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
               ),
             ),
 
