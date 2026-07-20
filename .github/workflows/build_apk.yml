@@ -32,13 +32,21 @@ jobs:
       - name: Build Release APK
         run: flutter build apk --release --android-skip-build-dependency-validation --verbose
 
+      - name: Find and list APK files
+        if: always()
+        run: |
+          echo "=== Searching for APK files ==="
+          find . -name "*.apk" -type f 2>/dev/null
+          echo "=== build directory structure ==="
+          find build -type f 2>/dev/null | head -50
+          echo "=== android/build directory ==="
+          find android/build -type f 2>/dev/null | head -50
+
       - name: Upload APK
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zhixingji-release-apk
           path: |
-            build/app/outputs/flutter-apk/*.apk
-            build/app/outputs/apk/**/*.apk
-            build/**/outputs/**/*.apk
+            **/*.apk
           retention-days: 30
