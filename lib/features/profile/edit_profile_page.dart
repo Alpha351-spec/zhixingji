@@ -9,7 +9,6 @@ import '../../services/user_service.dart';
 ///
 /// 极简风格，参考微信个人资料编辑页布局：
 /// - 顶部头像区（居中，可点击替换）
-/// - 隐私提示小字
 /// - 基础身份组：用户码（只读）、昵称（必填）、手机号（选填）、邮箱（选填）
 /// - 底部保存按钮
 class EditProfilePage extends StatefulWidget {
@@ -178,20 +177,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ),
 
-                  // 隐私提示
-                  Container(
-                    width: double.infinity,
-                    color: AppColors.white,
-                    padding: const EdgeInsets.only(
-                        left: 20, right: 20, bottom: 12),
-                    child: const Text(
-                      '你的资料仅存储在本地，不会上传至服务器。',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.textTertiary,
-                      ),
-                    ),
-                  ),
+                  // 隐私提示已移除（资料支持云端同步）
 
                   const SizedBox(height: 8),
 
@@ -333,13 +319,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    '资料仅保存在本设备，不会上传至服务器',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.textTertiary,
-                    ),
-                  ),
                 ],
               ),
             ),
