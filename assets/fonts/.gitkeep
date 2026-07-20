@@ -1,0 +1,9 @@
+# 此目录用于存放思源黑体字体文件（Source Han Sans SC）
+# 开发文档第2节：字体 思源黑体
+#
+# 需要放入以下字体文件：
+# - SourceHanSansSC-Light.otf      (300, 用于计时器超细字重)
+# - SourceHanSansSC-Regular.otf    (400, 正文)
+# - SourceHanSansSC-Medium.otf     (500, 标题/按钮)
+#
+# 下载地址：https://github.com/adobe-fonts/source-han-sans/releases

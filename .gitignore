@@ -1,0 +1,55 @@
+# Flutter
+.dart_tool/
+.build/
+build/
+*.apk
+*.aab
+*.ipa
+*.app
+*.so
+*.dill
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Android
+android/.kotlin/
+android/build/
+android/local.properties
+android/app/build/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+
+# macOS
+macos/Pods/
+macos/.symlinks/
+
+# Windows
+windows/flutter/
+windows/runner/cmake_install.cmake
+windows/CMakeCache.txt
+
+# Linux
+linux/flutter/
+linux/build/
+
+# Web
+web/build/
+
+# Temp / Docs
+docs/
+apk-build-guide/
+*.log
+*.txt
+
+# OS
+.DS_Store
+Thumbs.db
