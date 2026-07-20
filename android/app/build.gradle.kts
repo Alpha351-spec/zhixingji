@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    namespace = "com.xuejing"
+    namespace = "com.zhixingji"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
     buildToolsVersion = "35.0.0"
