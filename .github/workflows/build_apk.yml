@@ -1,37 +1,31 @@
 name: Build Release APK
-
 on:
   workflow_dispatch:
   push:
     tags:
       - 'v*'
-
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           flutter-version: 3.44.4
-
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
-
       - name: Flutter pub get
         run: flutter pub get
-
       - name: Build Release APK
         run: flutter build apk --release --android-skip-build-dependency-validation --verbose
-
       - name: Find and list APK files
         if: always()
         run: |
@@ -41,7 +35,6 @@ jobs:
           find build -type f 2>/dev/null | head -50
           echo "=== android/build directory ==="
           find android/build -type f 2>/dev/null | head -50
-
       - name: Upload APK
         if: always()
         uses: actions/upload-artifact@v4
@@ -50,3 +43,13 @@ jobs:
           path: |
             **/*.apk
           retention-days: 30
+      - name: Upload APK to Release
+        if: always()
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ./android/app/build/outputs/apk/release/app-release.apk
+          name: Release APK ${{ github.run_number }}
+          tag_name: v${{ github.run_number }}
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
