@@ -59,6 +59,11 @@ class WhiteNoiseGenerator {
     // 从 rootBundle 读取音频字节（带缓存）
     final bytes = await _loadAsset(assetPath);
 
+    // 先停止当前播放（避免切换时的冲突）
+    if (_isPlaying) {
+      await _player.stop();
+    }
+
     // 从音量 0 开始，避免突兀
     await _player.setVolume(0);
     await _player.setAudioSource(

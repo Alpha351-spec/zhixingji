@@ -13,6 +13,9 @@
     <!-- 开机自启权限（定时通知重启后保留） -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
 
+    <!-- 悬浮窗权限（番茄钟软锁屏需要） -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"/>
+
     <application
         android:label="知行计"
         android:name="${applicationName}"

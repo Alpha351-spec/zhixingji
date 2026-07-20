@@ -55,9 +55,25 @@ class _SettingsPageState extends State<SettingsPage> {
       await _previewPlayer.stop();
       setState(() => _previewingType = null);
     } else {
-      // 如果已有其他在播放，先停止（stop 是异步淡出，这里直接换源）
-      await _previewPlayer.start(type);
-      setState(() => _previewingType = type);
+      // 如果已有其他在播放，先停止
+      if (_previewingType != null) {
+        await _previewPlayer.stop();
+      }
+      try {
+        await _previewPlayer.start(type);
+        setState(() => _previewingType = type);
+      } catch (e) {
+        // ignore: avoid_print
+        print('[SettingsPage] 白噪音试听失败: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('试听失败，请检查音频资源'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -273,17 +289,16 @@ class _SettingsPageState extends State<SettingsPage> {
                     value: _settings.whiteNoise,
                     onChanged: (v) => _update(_settings.copyWith(whiteNoise: v)),
                   ),
-                  if (_settings.whiteNoise) ...[
-                    _divider(),
-                    _selectRow(
-                      label: '白噪音类型',
-                      value: _settings.whiteNoiseType,
-                      options: _noiseTypeOptions,
-                      onSelected: (v) => _update(_settings.copyWith(whiteNoiseType: v)),
-                      onPreview: _togglePreview,
-                      previewingValue: _previewingType,
-                    ),
-                  ],
+                  _divider(),
+                  // 白噪音类型始终显示，方便用户先试听再决定是否开启
+                  _selectRow(
+                    label: '白噪音类型',
+                    value: _settings.whiteNoiseType,
+                    options: _noiseTypeOptions,
+                    onSelected: (v) => _update(_settings.copyWith(whiteNoiseType: v)),
+                    onPreview: _togglePreview,
+                    previewingValue: _previewingType,
+                  ),
                 ],
               ),
             ),

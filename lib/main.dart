@@ -32,14 +32,15 @@ void main() async {
   // 4. 加载已保存的 API Key
   await ApiKeyService.load();
 
-  // 5. 加载已保存的用户资料
+  // 5. 用户身份初始化（生成/读取用户码，静默注册到云端）
+  //    必须在 UserProfileService 之前，确保用户码统一
+  await UserService.init();
+
+  // 6. 加载已保存的用户资料（从 UserService 同步用户码）
   await UserProfileService.load();
 
-  // 6. 加载已保存的应用设置
+  // 7. 加载已保存的应用设置
   await SettingsService.load();
-
-  // 7. 用户身份初始化（生成/读取用户码，静默注册到云端）
-  await UserService.init();
 
   // 8. 初始化番茄钟软锁屏服务
   LockScreenService.init();
@@ -65,7 +66,7 @@ void main() async {
     }
   }
 
-  // 10. 后台静默自动同步（不等待完成）
+  // 12. 后台静默自动同步（不等待完成）
   if (SupabaseConfig.isConfigured) {
     SyncService.autoSync(UserService.userId);
   }

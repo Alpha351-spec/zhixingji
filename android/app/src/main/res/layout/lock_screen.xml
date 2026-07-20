@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:background="#E6000000"
+    android:padding="32dp">
+
+    <!-- 番茄钟图标 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🍅"
+        android:textSize="64sp"
+        android:layout_marginBottom="24dp" />
+
+    <!-- 倒计时文本 -->
+    <TextView
+        android:id="@+id/countdown_text"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="专注中 25:00"
+        android:textSize="36sp"
+        android:textColor="#FFFFFF"
+        android:textStyle="bold"
+        android:layout_marginBottom="16dp" />
+
+    <!-- 提示文本 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="保持专注，不要离开哦"
+        android:textSize="16sp"
+        android:textColor="#AAAAAA"
+        android:layout_marginBottom="48dp" />
+
+    <!-- 放弃专注按钮 -->
+    <Button
+        android:id="@+id/abandon_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="放弃专注"
+        android:textSize="15sp"
+        android:textColor="#FF6B6B"
+        android:background="@android:color/transparent"
+        android:padding="16dp" />
+
+</LinearLayout>
