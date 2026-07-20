@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'core/theme/app_theme.dart';
-import 'shared/navigation/main_scaffold.dart';
+import 'features/splash/splash_page.dart';
 
 /// 应用根组件
 class App extends StatelessWidget {
@@ -12,7 +12,7 @@ class App extends StatelessWidget {
       title: '知行计',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-      home: const MainScaffold(),
+      home: const SplashPage(),
     );
   }
 }

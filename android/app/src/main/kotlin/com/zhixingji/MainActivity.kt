@@ -1,6 +1,5 @@
-package com.xuejing
+package com.zhixingji
 
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -10,7 +9,6 @@ import android.provider.Settings
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.Button
@@ -21,7 +19,7 @@ import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
 
-    private val CHANNEL = "com.xuejing.xuejing/lock_screen"
+    private val CHANNEL = "com.zhixingji.zhixingji/lock_screen"
     private var lockScreenView: View? = null
     private var countdownText: TextView? = null
     private var windowManager: WindowManager? = null

@@ -17,7 +17,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.xuejing"
+        applicationId = "com.zhixingji"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
