@@ -30,11 +30,15 @@ jobs:
         run: flutter pub get
 
       - name: Build Release APK
-        run: flutter build apk --release --android-skip-build-dependency-validation
+        run: flutter build apk --release --android-skip-build-dependency-validation --verbose
 
       - name: Upload APK
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: zhixingji-release-apk
-          path: build/app/outputs/flutter-apk/*.apk
+          path: |
+            build/app/outputs/flutter-apk/*.apk
+            build/app/outputs/apk/**/*.apk
+            build/**/outputs/**/*.apk
           retention-days: 30
