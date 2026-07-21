@@ -132,22 +132,22 @@ class _MainScaffoldState extends State<MainScaffold> {
   /// 执行实际的任务状态切换
   void _doToggleTask(Task task, bool completed) {
     setState(() {
-      // 同时更新今日任务和全部任务
+      // 同时更新今日任务和全部任务（用 day + title 精确定位单个任务）
       _todayTasks = _todayTasks.map((t) {
-        if (t.day == task.day) {
+        if (t.day == task.day && t.title == task.title) {
           return t.copyWith(completed: completed);
         }
         return t;
       }).toList();
       _allWeekTasks = _allWeekTasks.map((t) {
-        if (t.day == task.day) {
+        if (t.day == task.day && t.title == task.title) {
           return t.copyWith(completed: completed);
         }
         return t;
       }).toList();
       _completedCount = _allWeekTasks.where((t) => t.completed).length;
     });
-    PlanRepository.updateTaskCompleted(task.day, completed);
+    PlanRepository.updateTaskCompleted(task.day, completed, taskTitle: task.title);
   }
 
   /// 启动打卡验证流程

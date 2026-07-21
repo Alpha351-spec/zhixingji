@@ -131,14 +131,16 @@ class PlanRepository {
   /// 更新任务完成状态
   static Future<void> updateTaskCompleted(
     int taskDay,
-    bool completed,
-  ) async {
+    bool completed, {
+    String? taskTitle,
+  }) async {
     try {
       final plan = await getCurrentPlan();
       if (plan == null) return;
 
       final updatedTasks = plan.tasks.map((t) {
-        if (t.day == taskDay) {
+        // 用 day + title 精确定位单个任务，避免同一天所有任务被一起打卡
+        if (t.day == taskDay && (taskTitle == null || t.title == taskTitle)) {
           return t.copyWith(completed: completed);
         }
         return t;
@@ -163,13 +165,14 @@ class PlanRepository {
   }
 
   /// 更新任务专注时长
-  static Future<void> addFocusMinutes(int taskDay, int minutes) async {
+  static Future<void> addFocusMinutes(int taskDay, int minutes, {String? taskTitle}) async {
     try {
       final plan = await getCurrentPlan();
       if (plan == null) return;
 
       final updatedTasks = plan.tasks.map((t) {
-        if (t.day == taskDay) {
+        // 用 day + title 精确定位单个任务
+        if (t.day == taskDay && (taskTitle == null || t.title == taskTitle)) {
           return t.copyWith(focusMinutes: t.focusMinutes + minutes);
         }
         return t;
