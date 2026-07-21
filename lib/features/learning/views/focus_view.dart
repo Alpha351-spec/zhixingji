@@ -186,37 +186,126 @@ class _FocusViewState extends State<FocusView> with WidgetsBindingObserver {
       );
       return;
     }
-    setState(() {
-      if (_timerState == TimerState.completed) {
+
+    if (_timerState == TimerState.completed) {
+      setState(() {
         _timer?.cancel();
         _timeRemaining = _sessionDuration * 60;
         _timerState = TimerState.ready;
         _completionMessage = '';
-        return;
-      }
+      });
+      return;
+    }
 
-      if (_timerState == TimerState.running) {
-        _timerState = TimerState.paused;
-        _pauseTimer();
-      } else if (_timerState == TimerState.paused) {
-        _timerState = TimerState.running;
+    if (_timerState == TimerState.running) {
+      setState(() => _timerState = TimerState.paused);
+      _pauseTimer();
+      return;
+    }
+
+    if (_timerState == TimerState.paused) {
+      setState(() => _timerState = TimerState.running);
+      _startTimer();
+      return;
+    }
+
+    // ready 状态：开始专注前检查锁屏权限
+    if (_timerState == TimerState.ready) {
+      if (_lockScreen) {
+        _startFocusWithOverlayCheck();
+      } else {
+        setState(() => _timerState = TimerState.running);
         _startTimer();
-      } else if (_timerState == TimerState.ready) {
-        // 开始专注前，如果启用了锁屏，先检查并请求悬浮窗权限
-        if (_lockScreen) {
-          _ensureOverlayPermission().then((_) {
-            if (!_hasOverlayPermission) {
-              setState(() => _timerState = TimerState.ready);
-              return;
-            }
-            _startTimer();
-          });
-        } else {
-          _startTimer();
-        }
-        _timerState = TimerState.running;
       }
-    });
+    }
+  }
+
+  /// 开始专注（带悬浮窗权限检查）
+  Future<void> _startFocusWithOverlayCheck() async {
+    // 先检查权限
+    final hasPermission = await LockScreenService.canDrawOverlays();
+
+    if (hasPermission) {
+      // 已有权限，直接开始
+      if (!mounted) return;
+      setState(() {
+        _hasOverlayPermission = true;
+        _timerState = TimerState.running;
+      });
+      _startTimer();
+      return;
+    }
+
+    // 没有权限，弹对话框引导用户授权
+    if (!mounted) return;
+    final shouldRequest = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('需要悬浮窗权限'),
+        content: const Text('软锁屏功能需要"显示在其他应用上层"权限才能正常工作。\n\n点击"去设置"后，请在系统设置中开启权限，然后返回应用。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('去设置'),
+          ),
+        ],
+      ),
+    );
+
+    if (shouldRequest != true) {
+      // 用户取消，不开始专注
+      return;
+    }
+
+    // 跳转系统设置
+    await LockScreenService.requestOverlayPermission();
+
+    // 等待用户从设置页返回（给足够时间）
+    if (!mounted) return;
+
+    // 弹提示让用户确认已授权
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('已开启权限？'),
+        content: const Text('如果您已在系统设置中开启权限，请点击"已开启"开始专注。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('再等等'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('已开启'),
+          ),
+        ],
+      ),
+    );
+
+    // 重新检查权限
+    final nowHasPermission = await LockScreenService.canDrawOverlays();
+    if (!mounted) return;
+
+    setState(() => _hasOverlayPermission = nowHasPermission);
+
+    if (nowHasPermission) {
+      setState(() => _timerState = TimerState.running);
+      _startTimer();
+    } else {
+      // 仍然没有权限，提示用户
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('未获得悬浮窗权限，无法使用锁屏功能。可在设置中关闭锁屏后开始专注。'),
+            duration: Duration(seconds: 3),
+          ),
+        );
+      }
+    }
   }
 
   void _changeDuration(int duration) {
