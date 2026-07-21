@@ -33,7 +33,6 @@ dependencies:
 
   # 实时音频合成（白噪音生成器）—— just_audio + Windows 实现
   just_audio: ^0.10.5
-  just_audio_android: ^2.2.2
   just_audio_windows: ^0.2.3
 
   # 云端数据库（Supabase 后端服务）
