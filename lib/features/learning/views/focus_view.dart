@@ -202,8 +202,19 @@ class _FocusViewState extends State<FocusView> with WidgetsBindingObserver {
         _timerState = TimerState.running;
         _startTimer();
       } else if (_timerState == TimerState.ready) {
+        // 开始专注前，如果启用了锁屏，先检查并请求悬浮窗权限
+        if (_lockScreen) {
+          _ensureOverlayPermission().then((_) {
+            if (!_hasOverlayPermission) {
+              setState(() => _timerState = TimerState.ready);
+              return;
+            }
+            _startTimer();
+          });
+        } else {
+          _startTimer();
+        }
         _timerState = TimerState.running;
-        _startTimer();
       }
     });
   }
