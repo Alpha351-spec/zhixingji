@@ -331,4 +331,56 @@ class SupabaseService {
       return null;
     }
   }
+
+  // ============ 聊天记录相关 ============
+
+  /// 上传单条聊天记录
+  static Future<void> uploadChatMessage(
+    String userId,
+    Map<String, dynamic> message,
+  ) async {
+    if (!isAvailable) return;
+    try {
+      await _client.from('chat_history').insert({
+        'user_id': userId,
+        'sender': message['sender'],
+        'message_type': message['message_type'] ?? 'text',
+        'text': message['text'] ?? '',
+        'raw_response': message['raw_response'],
+        'created_at': message['created_at'] ?? DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      print('[SupabaseService] uploadChatMessage 失败: $e');
+    }
+  }
+
+  /// 下载全部聊天记录
+  ///
+  /// 失败返回空列表。
+  static Future<List<Map<String, dynamic>>> downloadChatHistory(
+    String userId,
+  ) async {
+    if (!isAvailable) return [];
+    try {
+      final response = await _client
+          .from('chat_history')
+          .select()
+          .eq('user_id', userId)
+          .order('id', ascending: true);
+      return List<Map<String, dynamic>>.from(response);
+    } catch (e) {
+      print('[SupabaseService] downloadChatHistory 失败: $e');
+      return [];
+    }
+  }
+
+  /// 清空云端聊天记录
+  static Future<void> clearCloudChatHistory(String userId) async {
+    if (!isAvailable) return;
+    try {
+      await _client.from('chat_history').delete().eq('user_id', userId);
+    } catch (e) {
+      print('[SupabaseService] clearCloudChatHistory 失败: $e');
+    }
+  }
 }

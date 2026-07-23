@@ -51,6 +51,9 @@ class SyncService {
 
       // 5. 同步用户资料
       await _syncUserProfile(userId);
+
+      // 6. 同步聊天记录
+      await _syncChatHistory(userId);
     } catch (e) {
       print('[SyncService] syncAll 失败: $e');
     } finally {
@@ -129,6 +132,18 @@ class SyncService {
                 SettingsService.current.whiteNoiseType,
           ),
         );
+      }
+
+      // 8. 下载并恢复聊天记录
+      final cloudChatHistory = await SupabaseService.downloadChatHistory(userId);
+      if (cloudChatHistory.isNotEmpty) {
+        await DatabaseHelper.clearChatHistory();
+        for (final msg in cloudChatHistory) {
+          final localMsg = Map<String, dynamic>.from(msg);
+          localMsg.remove('id');
+          localMsg.remove('user_id');
+          await DatabaseHelper.insertChatMessage(localMsg);
+        }
       }
 
       print('[SyncService] 从云端恢复数据成功');
@@ -278,6 +293,24 @@ class SyncService {
       }
     } catch (_) {}
     return null;
+  }
+
+  /// 同步聊天记录到云端
+  static Future<void> _syncChatHistory(String userId) async {
+    try {
+      final localHistory = await DatabaseHelper.getAllChatHistory();
+      if (localHistory.isEmpty) {
+        // 本地为空，清空云端
+        await SupabaseService.clearCloudChatHistory(userId);
+        return;
+      }
+      // 逐条上传（聊天记录量不大，逐条更安全）
+      for (final msg in localHistory) {
+        await SupabaseService.uploadChatMessage(userId, msg);
+      }
+    } catch (e) {
+      print('[SyncService] _syncChatHistory 失败: $e');
+    }
   }
 
   // ============ 辅助方法 ============

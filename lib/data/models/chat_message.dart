@@ -20,6 +20,30 @@ class ChatMessage {
   bool get isAI => sender == MessageSender.ai;
   bool get isUser => sender == MessageSender.user;
   bool get isPlanCard => type == MessageType.planCard;
+
+  /// 序列化为数据库行
+  Map<String, dynamic> toDb() {
+    return {
+      'sender': sender == MessageSender.ai ? 'ai' : 'user',
+      'message_type': type == MessageType.planCard ? 'planCard' : 'text',
+      'text': text,
+      'raw_response': rawResponse,
+      'created_at': DateTime.now().toIso8601String(),
+    };
+  }
+
+  /// 从数据库行反序列化
+  factory ChatMessage.fromDb(Map<String, dynamic> row) {
+    return ChatMessage(
+      id: row['id'] as int,
+      text: row['text'] as String? ?? '',
+      sender: row['sender'] == 'ai' ? MessageSender.ai : MessageSender.user,
+      type: row['message_type'] == 'planCard'
+          ? MessageType.planCard
+          : MessageType.text,
+      rawResponse: row['raw_response'] as String?,
+    );
+  }
 }
 
 enum MessageSender { ai, user }
