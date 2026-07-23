@@ -199,6 +199,13 @@ class _PlanPageState extends State<PlanPage> {
     _scrollToBottom();
     _saveMessage(_messages.last);
 
+    // P0-4: 检测是否有活跃计划，有则走微调流程
+    final activePlan = await _getActivePlanData();
+    if (activePlan != null) {
+      await _handleAdjustWithActivePlan(text, activePlan);
+      return;
+    }
+
     try {
       final history = _buildHistory();
       final aiResponse = await AIService.chat(history);
@@ -214,6 +221,111 @@ class _PlanPageState extends State<PlanPage> {
         _messages.add(errMsg);
       });
       _saveMessage(_messages.last);
+      _scrollToBottom();
+    }
+  }
+
+  /// 从数据库获取活跃计划数据
+  ///
+  /// 返回包含 diagnosisJson 和 planJson 的 Map，无活跃计划时返回 null
+  Future<Map<String, dynamic>?> _getActivePlanData() async {
+    try {
+      final plan = await DatabaseHelper.getPlan();
+      if (plan == null) return null;
+
+      final diagnosisStr = plan['diagnosis_json'] as String? ?? '';
+      final tasksStr = plan['tasks_json'] as String? ?? '[]';
+      if (diagnosisStr.isEmpty || tasksStr.isEmpty) return null;
+
+      final diagnosis = jsonDecode(diagnosisStr) as Map<String, dynamic>;
+      final tasks = jsonDecode(tasksStr) as List;
+      final goal = plan['goal'] as String? ?? '';
+
+      return {
+        'diagnosis': diagnosis,
+        'plan': {
+          'goal': goal,
+          'tasks': tasks,
+        },
+      };
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// 使用活跃计划数据进行微调
+  Future<void> _handleAdjustWithActivePlan(
+    String userFeedback,
+    Map<String, dynamic> planData,
+  ) async {
+    try {
+      final diagnosisJson = planData['diagnosis'] as Map<String, dynamic>;
+      final planJson = planData['plan'] as Map<String, dynamic>;
+
+      final aiResponse = await AIService.adjustPlan(
+        diagnosisJson: jsonEncode(diagnosisJson),
+        currentPlanJson: jsonEncode(planJson),
+        feedback: userFeedback,
+      );
+
+      // 解析 AI 回复
+      final newJson = AIService.extractJson(aiResponse);
+      if (newJson != null && newJson['plan'] != null) {
+        // 微调成功，显示新的计划卡片
+        final mergedPlan = newJson['plan'] as Map<String, dynamic>;
+        final mergedResponse = jsonEncode({
+          'diagnosis': diagnosisJson,
+          'plan': mergedPlan,
+        });
+        final introText = AIService.extractIntroText(aiResponse);
+        final combinedResponse = introText.isNotEmpty
+            ? '$introText\n```json\n$mergedResponse\n```'
+            : '```json\n$mergedResponse\n```';
+
+        setState(() {
+          _isLoading = false;
+          if (introText.isNotEmpty) {
+            _messages.add(ChatMessage(
+              id: _nextId++,
+              text: introText,
+              sender: MessageSender.ai,
+              rawResponse: combinedResponse,
+            ));
+          }
+          _messages.add(ChatMessage(
+            id: _nextId++,
+            text: '',
+            sender: MessageSender.ai,
+            type: MessageType.planCard,
+            rawResponse: combinedResponse,
+          ));
+        });
+        _scrollToBottom();
+      } else {
+        // 解析失败，友好提示
+        setState(() {
+          _isLoading = false;
+          _messages.add(ChatMessage(
+            id: _nextId++,
+            text: '我理解你想调整计划。不过刚才的回复格式出了点问题，'
+                '你可以试试点击下方计划卡片的「微调」按钮，'
+                '选择具体的调整方向（节奏太紧/太简单/加练习），我会更精准地帮你调整。',
+            sender: MessageSender.ai,
+          ));
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      // 微调失败，友好提示不崩溃
+      setState(() {
+        _isLoading = false;
+        _messages.add(ChatMessage(
+          id: _nextId++,
+          text: '抱歉，调整计划时出了点问题：$e\n'
+              '你可以稍后重试，或点击计划卡片的「微调」按钮进行调整。',
+          sender: MessageSender.ai,
+        ));
+      });
       _scrollToBottom();
     }
   }
@@ -506,8 +618,8 @@ class _PlanPageState extends State<PlanPage> {
 
   // ============ 换个思路（原重置） ============
 
-  /// 处理"换个思路"：清空对话，重新开始完整诊断
-  void _handleRestart() {
+  /// 处理"换个思路"：清空对话和活跃计划，重新开始完整诊断
+  Future<void> _handleRestart() async {
     if (!_planGenerationLimiter.canRequest) {
       _showSnackBar(
         '刚生成过计划，请等 ${_planGenerationLimiter.remainingSeconds} 秒后再重新开始',
@@ -515,8 +627,11 @@ class _PlanPageState extends State<PlanPage> {
       return;
     }
 
-    // 清空数据库聊天记录
-    DatabaseHelper.clearChatHistory();
+    // 清空数据库聊天记录和活跃计划
+    try {
+      await DatabaseHelper.clearChatHistory();
+      await DatabaseHelper.deletePlan();
+    } catch (_) {}
 
     setState(() {
       _messages.clear();
