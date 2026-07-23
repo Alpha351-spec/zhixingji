@@ -45,7 +45,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - user@example.com
+          - 2275199600@qq.com
       scripts:
         - name: Print APK info
           script: |
