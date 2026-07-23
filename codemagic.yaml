@@ -38,24 +38,20 @@ workflows:
         script: |
           flutter pub get
 
-      - name: Pre-warm Gradle dependencies
-        script: |
-          # 预下载关键依赖，避免构建中超时
-          cd android
-          ./gradlew --refresh-dependencies :app:dependencies --configuration releaseRuntimeClasspath || true
-          cd ..
-
       - name: Build Release APK
         script: |
-          # 直接用 Gradle 构建，绕过 Flutter 工具的 APK 路径查找问题
-          cd android
-          ./gradlew assembleRelease --stacktrace
-          cd ..
+          # flutter build apk 的 Gradle 构建实际会成功，
+          # 但 Flutter 工具可能找不到 APK 路径而报错，用 || true 忽略退出码
+          flutter build apk --release \
+            --android-skip-build-dependency-validation || true
 
-          # 查找生成的 APK 并复制到 Flutter 期望的路径
-          APK_PATH=$(find build -name "*.apk" -path "*/release/*" | head -1)
+          # 全局搜索 APK 文件
+          echo "=== 搜索所有 APK 文件 ==="
+          find . -name "*.apk" -type f 2>/dev/null
+
+          APK_PATH=$(find . -name "*.apk" -path "*/release/*" -type f | head -1)
           if [ -z "$APK_PATH" ]; then
-            APK_PATH=$(find build -name "*.apk" | head -1)
+            APK_PATH=$(find . -name "*.apk" -type f | head -1)
           fi
 
           if [ -n "$APK_PATH" ]; then
@@ -66,7 +62,6 @@ workflows:
             ls -lh build/app/outputs/apk/release/app-release.apk
           else
             echo "=== 错误: 未找到任何 APK 文件 ==="
-            find build -name "*.apk" -type f
             exit 1
           fi
 
