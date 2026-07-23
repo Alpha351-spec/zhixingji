@@ -213,9 +213,13 @@ class _PlanPageState extends State<PlanPage> {
     } catch (e) {
       setState(() {
         _isLoading = false;
+        final errStr = e.toString();
+        final friendlyMsg = errStr.contains('余额不足')
+            ? 'AI 服务余额不足，请前往 DeepSeek 平台充值后重试。'
+            : '抱歉，出了点问题：$e\n请检查网络连接和 API Key 后重试。';
         final errMsg = ChatMessage(
           id: _nextId++,
-          text: '抱歉，出了点问题：$e\n请检查网络连接和 API Key 后重试。',
+          text: friendlyMsg,
           sender: MessageSender.ai,
         );
         _messages.add(errMsg);

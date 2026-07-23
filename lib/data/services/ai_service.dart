@@ -793,6 +793,9 @@ JSON 格式：
       if (response.statusCode != 200) {
         final errorBody = jsonDecode(response.body);
         final errorMsg = errorBody['error']?['message'] ?? response.body;
+        if (response.statusCode == 402) {
+          throw Exception('AI服务余额不足，请充值后重试');
+        }
         throw Exception('AI请求失败(${response.statusCode}): $errorMsg');
       }
 
@@ -1236,6 +1239,9 @@ $feedback
       if (response.statusCode != 200) {
         final errorBody = jsonDecode(response.body);
         final errorMsg = errorBody['error']?['message'] ?? response.body;
+        if (response.statusCode == 402) {
+          throw Exception('AI服务余额不足，请充值后重试');
+        }
         throw Exception('AI请求失败(${response.statusCode}): $errorMsg');
       }
 
