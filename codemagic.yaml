@@ -47,21 +47,26 @@ workflows:
 
       - name: Build Release APK
         script: |
-          # 清理可能缓存了错误的 Gradle 依赖
-          rm -rf ~/.gradle/caches/modules-2/files-2.1/org.apache.httpcomponents
-          # 使用 --verbose 显示完整 Gradle 错误
-          flutter build apk --release --verbose \
-            --android-skip-build-dependency-validation 2>&1 | tee /tmp/build_output.log
-          BUILD_EXIT=${PIPESTATUS[0]}
-          if [ $BUILD_EXIT -ne 0 ]; then
-            echo "=== 构建失败，输出最后 500 行日志 ==="
-            tail -500 /tmp/build_output.log
-            echo "=== 搜索 Gradle 错误 ==="
-            grep -i -A5 "error\|FAILURE\|What went wrong\|exception" /tmp/build_output.log | tail -100
-            # 尝试直接运行 Gradle 获取更详细错误
-            echo "=== 直接运行 Gradle assembleRelease ==="
-            cd android
-            ./gradlew assembleRelease --stacktrace 2>&1 | tail -200
+          # 直接用 Gradle 构建，绕过 Flutter 工具的 APK 路径查找问题
+          cd android
+          ./gradlew assembleRelease --stacktrace
+          cd ..
+
+          # 查找生成的 APK 并复制到 Flutter 期望的路径
+          APK_PATH=$(find build -name "*.apk" -path "*/release/*" | head -1)
+          if [ -z "$APK_PATH" ]; then
+            APK_PATH=$(find build -name "*.apk" | head -1)
+          fi
+
+          if [ -n "$APK_PATH" ]; then
+            echo "找到 APK: $APK_PATH"
+            mkdir -p build/app/outputs/apk/release
+            cp "$APK_PATH" build/app/outputs/apk/release/app-release.apk
+            echo "已复制到: build/app/outputs/apk/release/app-release.apk"
+            ls -lh build/app/outputs/apk/release/app-release.apk
+          else
+            echo "=== 错误: 未找到任何 APK 文件 ==="
+            find build -name "*.apk" -type f
             exit 1
           fi
 
