@@ -49,8 +49,15 @@ workflows:
         script: |
           # 清理可能缓存了错误的 Gradle 依赖
           rm -rf ~/.gradle/caches/modules-2/files-2.1/org.apache.httpcomponents
+          # 构建并输出完整日志（--verbose 显示详细错误）
           flutter build apk --release \
-            --android-skip-build-dependency-validation
+            --android-skip-build-dependency-validation 2>&1 | tee /tmp/build_output.log
+          BUILD_EXIT=${PIPESTATUS[0]}
+          if [ $BUILD_EXIT -ne 0 ]; then
+            echo "=== 构建失败，输出最后 200 行日志 ==="
+            tail -200 /tmp/build_output.log
+            exit 1
+          fi
 
     artifacts:
       - build/**/outputs/apk/**/*.apk
