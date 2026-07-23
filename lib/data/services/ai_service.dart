@@ -118,6 +118,7 @@ JSON 必须放在 ```json 代码块中，格式如下：
 ## 注意事项
 - 在未收集到足够信息前，只进行自然对话，不要输出 JSON
 - tasks 的 day 字段为 1-7，同一天可以有多个任务（day 字段相同），具体数量见"用户学习偏好"
+- **重要：plan.tasks 必须覆盖 day 1 到最终天数的所有天数，不能遗漏任何一天。例如生成7天计划时，tasks 中必须包含 day=1、day=2、...、day=7 的任务**
 - 必须遵守"用户学习偏好"中的每日任务数量要求，并结合用户每日时间合理调整
 - 如果有截止日期，total_days = 从今天到截止日期的天数
 - 如果无截止日期，total_days = 用户选择的周期（14/30/60/90/120）
@@ -307,6 +308,99 @@ JSON 格式：
     }
 
     return buf.toString();
+  }
+
+  // ============ P0-3: 任务天数校验 ============
+
+  /// 验证计划中的任务天数是否覆盖了所有预期天数
+  ///
+  /// [response] AI 回复文本
+  /// [expectedDays] 预期的天数（7 或本周剩余天数）
+  /// 返回 true 如果验证通过，false 如果天数不匹配
+  static bool _validatePlanTaskDays(String response, int expectedDays) {
+    final json = extractJson(response);
+    if (json == null || json['plan'] == null) return true;
+
+    final plan = json['plan'] as Map<String, dynamic>;
+    final tasks = plan['tasks'] as List?;
+    if (tasks == null || tasks.isEmpty) return false;
+
+    // 提取所有 day 值
+    final days = <int>{};
+    for (final task in tasks) {
+      final day = (task as Map<String, dynamic>)['day'];
+      if (day != null) {
+        days.add((day is int) ? day : int.tryParse(day.toString()) ?? -1);
+      }
+    }
+
+    // 检查是否覆盖 1 到 expectedDays 的所有天数
+    for (var d = 1; d <= expectedDays; d++) {
+      if (!days.contains(d)) return false;
+    }
+
+    // 检查是否有超出预期范围的天数
+    for (final d in days) {
+      if (d < 1 || d > expectedDays) return false;
+    }
+
+    return true;
+  }
+
+  /// 重试生成计划（校正任务天数）
+  ///
+  /// 在 AI 返回的计划天数不正确时，发送纠正消息让 AI 重新生成。
+  /// 只重试一次，失败则返回 null（调用方使用原始回复）。
+  static Future<String?> _retryPlanWithCorrection(
+    List<Map<String, dynamic>> messages,
+    String originalResponse,
+    int expectedDays,
+  ) async {
+    try {
+      messages.add({'role': 'assistant', 'content': originalResponse});
+      messages.add({
+        'role': 'user',
+        'content': '你生成的计划中任务天数不正确。请确保 plan.tasks 中的 day 字段'
+            '覆盖 1 到 $expectedDays 的所有天数（共 $expectedDays 天），'
+            '不要遗漏任何一天，也不要包含超出范围的天数。'
+            '请重新输出完整的 JSON，不要输出其他内容。',
+      });
+
+      final response = await http
+          .post(
+            Uri.parse(AppConstants.apiEndpoint),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ${AppConstants.apiKey}',
+            },
+            body: jsonEncode({
+              'model': AppConstants.model,
+              'messages': messages,
+              'temperature': 0.3,
+              'max_tokens': _dynamicMaxTokens,
+              'tool_choice': 'none',
+            }),
+          )
+          .timeout(_dynamicTimeout);
+
+      if (response.statusCode != 200) return null;
+
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      final choices = data['choices'] as List;
+      if (choices.isEmpty) return null;
+
+      final message = choices[0]['message'] as Map<String, dynamic>;
+      final content = _cleanResponse(message['content'] as String? ?? '');
+
+      // 验证重试结果
+      if (containsPlan(content)) {
+        return content;
+      }
+      return null;
+    } catch (e) {
+      print('[AIService] _retryPlanWithCorrection 失败: $e');
+      return null;
+    }
   }
 
   /// 检测文本是否看起来像搜索关键词而非正常对话回复
@@ -717,6 +811,18 @@ JSON 格式：
         if (_looksLikeSearchQuery(content)) {
           return '抱歉，搜索服务出现异常。请直接告诉我你的学习目标和基础情况，我会基于专业知识为你生成计划。';
         }
+        // P0-3: 校验计划任务天数，不符合则自动重试一次
+        if (containsPlan(content)) {
+          final expectedDays = _getWeekScheduleInfo()['remainingDays'] as int;
+          if (!_validatePlanTaskDays(content, expectedDays)) {
+            final retryContent = await _retryPlanWithCorrection(
+              allMessages,
+              content,
+              expectedDays,
+            );
+            if (retryContent != null) return retryContent;
+          }
+        }
         return content;
       }
 
@@ -860,7 +966,17 @@ $feedback
       final toolCalls = message['tool_calls'] as List?;
 
       if (toolCalls == null || toolCalls.isEmpty || !allowTools) {
-        return _cleanResponse(message['content'] as String? ?? '');
+        final content = _cleanResponse(message['content'] as String? ?? '');
+        // P0-3: 校验续订计划任务天数（续订始终为7天）
+        if (containsPlan(content) && !_validatePlanTaskDays(content, 7)) {
+          final retryContent = await _retryPlanWithCorrection(
+            allMessages,
+            content,
+            7,
+          );
+          if (retryContent != null) return retryContent;
+        }
+        return content;
       }
 
       allMessages.add({
@@ -1037,6 +1153,7 @@ $feedback
     return _callAIWithSearch(
       systemPrompt: '$_adjustSystemPrompt\n\n## 重要：当前日期\n今天是 $_todayStr。',
       userContent: userContent,
+      expectedDays: 7,
     );
   }
 
@@ -1081,6 +1198,7 @@ $feedback
   static Future<String> _callAIWithSearch({
     required String systemPrompt,
     required String userContent,
+    int? expectedDays,
   }) async {
     final allMessages = <Map<String, dynamic>>[
       {'role': 'system', 'content': systemPrompt},
@@ -1129,7 +1247,19 @@ $feedback
       final toolCalls = message['tool_calls'] as List?;
 
       if (toolCalls == null || toolCalls.isEmpty || !allowTools) {
-        return _cleanResponse(message['content'] as String? ?? '');
+        final content = _cleanResponse(message['content'] as String? ?? '');
+        // P0-3: 校验计划任务天数（如果指定了预期天数）
+        if (expectedDays != null &&
+            containsPlan(content) &&
+            !_validatePlanTaskDays(content, expectedDays)) {
+          final retryContent = await _retryPlanWithCorrection(
+            allMessages,
+            content,
+            expectedDays,
+          );
+          if (retryContent != null) return retryContent;
+        }
+        return content;
       }
 
       allMessages.add({
