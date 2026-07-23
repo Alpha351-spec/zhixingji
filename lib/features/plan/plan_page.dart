@@ -4,8 +4,10 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/utils/message_filter.dart';
 import '../../core/utils/rate_limiter.dart';
+import '../../data/database/database_helper.dart';
 import '../../data/models/chat_message.dart';
 import '../../data/services/ai_service.dart';
+import '../../services/sync_service.dart';
 import 'widgets/message_bubble.dart';
 import 'widgets/plan_card.dart';
 import 'widgets/typing_bubble.dart';
@@ -61,11 +63,49 @@ class _PlanPageState extends State<PlanPage> {
   @override
   void initState() {
     super.initState();
-    _messages.add(ChatMessage(
-      id: _nextId++,
-      text: '你好！我是你的规划助手「知行计」。\n你想达成什么目标？',
-      sender: MessageSender.ai,
-    ));
+    _loadChatHistory();
+  }
+
+  /// 从数据库加载聊天记录
+  Future<void> _loadChatHistory() async {
+    try {
+      final rows = await DatabaseHelper.getAllChatHistory();
+      if (rows.isEmpty) {
+        // 无历史记录，添加欢迎消息
+        _addWelcomeMessage();
+        return;
+      }
+      setState(() {
+        _messages.clear();
+        for (final row in rows) {
+          _messages.add(ChatMessage.fromDb(row));
+        }
+        _nextId = (_messages.last.id) + 1;
+      });
+      _scrollToBottom();
+    } catch (e) {
+      // 加载失败时添加欢迎消息
+      _addWelcomeMessage();
+    }
+  }
+
+  /// 添加欢迎消息
+  void _addWelcomeMessage() {
+    setState(() {
+      _messages.add(ChatMessage(
+        id: _nextId++,
+        text: '你好！我是你的规划助手「知行计」。\n你想达成什么目标？',
+        sender: MessageSender.ai,
+      ));
+    });
+  }
+
+  /// 保存消息到数据库
+  Future<void> _saveMessage(ChatMessage msg) async {
+    try {
+      await DatabaseHelper.insertChatMessage(msg.toDb());
+      SyncService.triggerAutoSync();
+    } catch (_) {}
   }
 
   @override
@@ -147,15 +187,17 @@ class _PlanPageState extends State<PlanPage> {
 
     setState(() {
       _phase = _ChatPhase.normal;
-      _messages.add(ChatMessage(
+      final userMsg = ChatMessage(
         id: _nextId++,
         text: text,
         sender: MessageSender.user,
-      ));
+      );
+      _messages.add(userMsg);
       _isLoading = true;
     });
     _inputController.clear();
     _scrollToBottom();
+    _saveMessage(_messages.last);
 
     try {
       final history = _buildHistory();
@@ -164,12 +206,14 @@ class _PlanPageState extends State<PlanPage> {
     } catch (e) {
       setState(() {
         _isLoading = false;
-        _messages.add(ChatMessage(
+        final errMsg = ChatMessage(
           id: _nextId++,
           text: '抱歉，出了点问题：$e\n请检查网络连接和 API Key 后重试。',
           sender: MessageSender.ai,
-        ));
+        );
+        _messages.add(errMsg);
       });
+      _saveMessage(_messages.last);
       _scrollToBottom();
     }
   }
@@ -190,29 +234,35 @@ class _PlanPageState extends State<PlanPage> {
         final introText = AIService.extractIntroText(response);
 
         if (introText.isNotEmpty) {
-          _messages.add(ChatMessage(
+          final msg = ChatMessage(
             id: _nextId++,
             text: introText,
             sender: MessageSender.ai,
             rawResponse: response,
-          ));
+          );
+          _messages.add(msg);
+          _saveMessage(msg);
         }
 
-        _messages.add(ChatMessage(
+        final cardMsg = ChatMessage(
           id: _nextId++,
           text: '',
           sender: MessageSender.ai,
           type: MessageType.planCard,
           rawResponse: response,
-        ));
+        );
+        _messages.add(cardMsg);
+        _saveMessage(cardMsg);
         _phase = _ChatPhase.normal;
       } else {
-        _messages.add(ChatMessage(
+        final msg = ChatMessage(
           id: _nextId++,
           text: response,
           sender: MessageSender.ai,
           rawResponse: response,
-        ));
+        );
+        _messages.add(msg);
+        _saveMessage(msg);
         _phase = newPhase;
       }
     });
@@ -425,12 +475,14 @@ class _PlanPageState extends State<PlanPage> {
     } else {
       setState(() {
         _phase = _ChatPhase.awaitingDuration;
-        _messages.add(ChatMessage(
+        final msg = ChatMessage(
           id: _nextId++,
           text: '没有，长期学习',
           sender: MessageSender.user,
-        ));
+        );
+        _messages.add(msg);
       });
+      _saveMessage(_messages.last);
       _scrollToBottom();
     }
   }
@@ -463,11 +515,15 @@ class _PlanPageState extends State<PlanPage> {
       return;
     }
 
+    // 清空数据库聊天记录
+    DatabaseHelper.clearChatHistory();
+
     setState(() {
       _messages.clear();
       _savedPlanIds.clear();
       _adjustingPlanIds.clear();
       _phase = _ChatPhase.normal;
+      _nextId = 1;
       _messages.add(ChatMessage(
         id: _nextId++,
         text: '你好！我是你的规划助手「知行计」。\n你想达成什么目标？',
@@ -475,6 +531,8 @@ class _PlanPageState extends State<PlanPage> {
       ));
       _isLoading = false;
     });
+    _saveMessage(_messages.last);
+    SyncService.triggerAutoSync();
   }
 
   void _showSnackBar(String message) {

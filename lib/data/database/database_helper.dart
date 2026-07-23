@@ -28,10 +28,11 @@ class DatabaseHelper {
       path,
       version: TableDefinitions.dbVersion,
       onCreate: (db, version) async {
-        // 首次创建：同时建两张表
+        // 首次创建：同时建所有表
         await db.execute(TableDefinitions.createCurrentPlanTable);
         await db.execute(TableDefinitions.createUserStatsTable);
         await db.execute(TableDefinitions.createVerificationRecordsTable);
+        await db.execute(TableDefinitions.createChatHistoryTable);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         // v1 → v2：新增 user_stats 表
@@ -51,6 +52,10 @@ class DatabaseHelper {
         // v3 → v4：新增 verification_records 表
         if (oldVersion < 4) {
           await db.execute(TableDefinitions.upgradeV3ToV4);
+        }
+        // v4 → v5：新增 chat_history 表
+        if (oldVersion < 5) {
+          await db.execute(TableDefinitions.upgradeV4ToV5);
         }
       },
     );
@@ -240,6 +245,32 @@ class DatabaseHelper {
     );
     if (results.isEmpty) return null;
     return results.first;
+  }
+
+  // ============ chat_history 操作 ============
+
+  /// 插入一条聊天记录
+  static Future<int> insertChatMessage(Map<String, dynamic> message) async {
+    final db = await database;
+    return await db.insert(
+      TableDefinitions.tableChatHistory,
+      message,
+    );
+  }
+
+  /// 查询全部聊天记录（按时间正序）
+  static Future<List<Map<String, dynamic>>> getAllChatHistory() async {
+    final db = await database;
+    return await db.query(
+      TableDefinitions.tableChatHistory,
+      orderBy: 'id ASC',
+    );
+  }
+
+  /// 清空全部聊天记录
+  static Future<void> clearChatHistory() async {
+    final db = await database;
+    await db.delete(TableDefinitions.tableChatHistory);
   }
 
   /// 关闭数据库

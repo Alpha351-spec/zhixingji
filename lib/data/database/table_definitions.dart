@@ -6,7 +6,7 @@ class TableDefinitions {
   static const String dbName = 'zhixue_daka.db';
 
   /// 数据库版本
-  static const int dbVersion = 4;
+  static const int dbVersion = 5;
 
   /// 当前活跃计划表
   static const String tableCurrentPlan = 'current_plan';
@@ -16,6 +16,9 @@ class TableDefinitions {
 
   /// 验证记录表
   static const String tableVerificationRecords = 'verification_records';
+
+  /// 聊天记录表（v5 新增）
+  static const String tableChatHistory = 'chat_history';
 
   /// 建表 SQL：当前活跃计划（v3：新增 deadline、total_days、current_week）
   static const String createCurrentPlanTable = '''
@@ -53,6 +56,30 @@ class TableDefinitions {
       user_answer TEXT,
       ai_evaluation TEXT,
       passed INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    )
+  ''';
+
+  /// 建表 SQL：聊天记录表（v5 新增）
+  static const String createChatHistoryTable = '''
+    CREATE TABLE IF NOT EXISTS $tableChatHistory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender TEXT NOT NULL,
+      message_type TEXT NOT NULL DEFAULT 'text',
+      text TEXT NOT NULL DEFAULT '',
+      raw_response TEXT,
+      created_at TEXT NOT NULL
+    )
+  ''';
+
+  /// v4 → v5：新增 chat_history 表
+  static const String upgradeV4ToV5 = '''
+    CREATE TABLE IF NOT EXISTS $tableChatHistory (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender TEXT NOT NULL,
+      message_type TEXT NOT NULL DEFAULT 'text',
+      text TEXT NOT NULL DEFAULT '',
+      raw_response TEXT,
       created_at TEXT NOT NULL
     )
   ''';

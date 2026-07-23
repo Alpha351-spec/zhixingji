@@ -70,6 +70,17 @@ CREATE TABLE IF NOT EXISTS user_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- 7. 聊天记录表
+CREATE TABLE IF NOT EXISTS chat_history (
+  id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES users(user_id) ON DELETE CASCADE,
+  sender TEXT NOT NULL,
+  message_type TEXT NOT NULL DEFAULT 'text',
+  text TEXT NOT NULL DEFAULT '',
+  raw_response TEXT,
+  created_at TEXT NOT NULL
+);
+
 -- ============================================================
 -- RLS（行级安全）策略
 -- 当前使用 anon key 直接访问，后续接入正式登录后需启用 RLS
@@ -82,6 +93,7 @@ ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE checkins ENABLE ROW LEVEL SECURITY;
 ALTER TABLE verification_records ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE chat_history ENABLE ROW LEVEL SECURITY;
 
 -- 开发阶段：允许匿名访问（生产环境需改为按用户 ID 过滤）
 CREATE POLICY "Allow all for anon" ON users FOR ALL USING (true) WITH CHECK (true);
@@ -90,6 +102,7 @@ CREATE POLICY "Allow all for anon" ON tasks FOR ALL USING (true) WITH CHECK (tru
 CREATE POLICY "Allow all for anon" ON checkins FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON verification_records FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all for anon" ON user_settings FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all for anon" ON chat_history FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================================
 -- 索引（提升查询性能）
