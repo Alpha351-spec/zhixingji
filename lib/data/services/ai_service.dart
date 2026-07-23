@@ -176,6 +176,63 @@ JSON 格式：
     return '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
   }
 
+  /// 获取中文星期名称
+  static String _weekdayName(int weekday) {
+    const names = ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+    return names[weekday];
+  }
+
+  /// 计算本周剩余天数信息
+  ///
+  /// 返回一个包含以下字段的 Map：
+  /// - remainingDays: 本周剩余天数（含今天），周日或不足1天时为 7（下周）
+  /// - scheduleNextWeek: 是否应安排下周的完整7天计划
+  /// - weekdayName: 中文星期名称
+  static Map<String, dynamic> _getWeekScheduleInfo() {
+    final now = DateTime.now();
+    final weekday = now.weekday; // Monday=1, Sunday=7
+
+    // 本周剩余天数（含今天）：周一=7, 周二=6, ..., 周日=1
+    final remainingDays = 8 - weekday;
+
+    // 周日或剩余不足1天：安排下周完整计划
+    if (weekday == DateTime.sunday || remainingDays < 1) {
+      return {
+        'remainingDays': 7,
+        'scheduleNextWeek': true,
+        'weekdayName': _weekdayName(weekday),
+      };
+    }
+    return {
+      'remainingDays': remainingDays,
+      'scheduleNextWeek': false,
+      'weekdayName': _weekdayName(weekday),
+    };
+  }
+
+  /// 构建本周安排提示词片段
+  ///
+  /// 根据当前日期计算本周剩余天数：
+  /// - 周日或剩余不足1天：安排下周完整7天计划
+  /// - 其他：只安排剩余天数的任务
+  static String get _weekSchedulePrompt {
+    final info = _getWeekScheduleInfo();
+    final remainingDays = info['remainingDays'] as int;
+    final scheduleNextWeek = info['scheduleNextWeek'] as bool;
+    final weekdayName = info['weekdayName'] as String;
+
+    if (scheduleNextWeek) {
+      return '今天是 $_todayStr（$weekdayName）。本周剩余天数不足1天，'
+          '请为下周生成完整的 7 天计划（day 字段为 1-7）。'
+          '计算截止日期剩余天数时请以今天为准。';
+    }
+    return '今天是 $_todayStr（$weekdayName）。本周剩余 $remainingDays 天（含今天）。'
+        '请只生成 $remainingDays 天的任务（day 字段为 1 到 $remainingDays），'
+        '确保任务能在本周内完成。'
+        '计算截止日期剩余天数时请以今天为准。\n'
+        '重要：覆盖上方"只生成7天任务"的要求，实际只生成 $remainingDays 天的任务。';
+  }
+
   /// 根据每日任务数动态计算 max_tokens
   ///
   /// 每个任务约需 150-200 tokens（title+description+keywords+encouragement）
@@ -601,7 +658,7 @@ JSON 格式：
   /// 联网搜索策略：仅第1轮允许 tool_calls，之后强制 tool_choice='none'
   static Future<String> chat(List<Map<String, String>> messages) async {
     final promptWithDate =
-        '$_systemPromptBase$_userPrefsPrompt\n\n## 重要：当前日期\n今天是 $_todayStr。计算截止日期剩余天数时请以此为准。';
+        '$_systemPromptBase$_userPrefsPrompt\n\n## 重要：当前日期与本周安排\n$_weekSchedulePrompt';
 
     // 构建消息列表（类型为 List<Map<String, dynamic>> 以支持 tool_calls）
     final allMessages = <Map<String, dynamic>>[
