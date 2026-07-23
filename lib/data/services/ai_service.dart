@@ -377,7 +377,7 @@ JSON 格式：
               'model': AppConstants.model,
               'messages': messages,
               'temperature': 0.3,
-              'max_tokens': _dynamicMaxTokens,
+              'max_tokens': 4000,
               'tool_choice': 'none',
             }),
           )
@@ -760,8 +760,8 @@ JSON 格式：
       ...messages,
     ];
 
-    // 最多循环3次：第1轮允许搜索，后续强制不搜索
-    for (var round = 0; round < 3; round++) {
+    // 最多循环2次：第1轮允许搜索，第2轮强制不搜索
+    for (var round = 0; round < 2; round++) {
       final allowTools = round == 0;
 
       final requestBody = <String, dynamic>{
@@ -802,6 +802,15 @@ JSON 格式：
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final choices = data['choices'] as List;
       if (choices.isEmpty) throw Exception('AI返回为空');
+
+      // 记录 token 用量
+      final usage = data['usage'];
+      if (usage != null) {
+        print('[AIService] chat round=$round | '
+            'prompt=${usage['prompt_tokens']} | '
+            'completion=${usage['completion_tokens']} | '
+            'total=${usage['total_tokens']}');
+      }
 
       final message = choices[0]['message'] as Map<String, dynamic>;
       final toolCalls = message['tool_calls'] as List?;
@@ -868,34 +877,8 @@ JSON 格式：
       // 继续循环，下一轮 tool_choice='none'，AI 必须生成回复
     }
 
-    // 兜底：如果3轮都没拿到内容（极端情况），做最后一次无工具请求
-    final fallbackResponse = await http
-        .post(
-          Uri.parse(AppConstants.apiEndpoint),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${AppConstants.apiKey}',
-          },
-          body: jsonEncode({
-            'model': AppConstants.model,
-            'messages': allMessages,
-            'temperature': AppConstants.temperature,
-            'max_tokens': _dynamicMaxTokens,
-            'tool_choice': 'none',
-          }),
-        )
-        .timeout(_dynamicTimeout);
-
-    if (fallbackResponse.statusCode == 200) {
-      final data = jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
-      final choices = data['choices'] as List;
-      if (choices.isNotEmpty) {
-        final message = choices[0]['message'] as Map<String, dynamic>;
-        return _cleanResponse(message['content'] as String? ?? '');
-      }
-    }
-
-    throw Exception('AI请求超时，请检查网络后重试');
+    // 2轮都没拿到内容，返回提示
+    throw Exception('AI未能生成回复，请重试');
   }
 
   /// 续订下一周计划（支持联网搜索）
@@ -927,7 +910,7 @@ $feedback
       {'role': 'user', 'content': userContent},
     ];
 
-    for (var round = 0; round < 3; round++) {
+    for (var round = 0; round < 2; round++) {
       final allowTools = round == 0;
 
       final requestBody = <String, dynamic>{
@@ -1018,34 +1001,7 @@ $feedback
       }
     }
 
-    // 兜底：无工具请求
-    final fallbackResponse = await http
-        .post(
-          Uri.parse(AppConstants.apiEndpoint),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${AppConstants.apiKey}',
-          },
-          body: jsonEncode({
-            'model': AppConstants.model,
-            'messages': allMessages,
-            'temperature': AppConstants.temperature,
-            'max_tokens': _dynamicMaxTokens,
-            'tool_choice': 'none',
-          }),
-        )
-        .timeout(_dynamicTimeout);
-
-    if (fallbackResponse.statusCode == 200) {
-      final data = jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
-      final choices = data['choices'] as List;
-      if (choices.isNotEmpty) {
-        final message = choices[0]['message'] as Map<String, dynamic>;
-        return _cleanResponse(message['content'] as String? ?? '');
-      }
-    }
-
-    throw Exception('续订请求超时，请检查网络后重试');
+    throw Exception('续订请求失败，请重试');
   }
 
   // ============ 计划微调 ============
@@ -1208,7 +1164,7 @@ $feedback
       {'role': 'user', 'content': userContent},
     ];
 
-    for (var round = 0; round < 3; round++) {
+    for (var round = 0; round < 2; round++) {
       final allowTools = round == 0;
 
       final requestBody = <String, dynamic>{
@@ -1304,34 +1260,7 @@ $feedback
       }
     }
 
-    // 兜底
-    final fallbackResponse = await http
-        .post(
-          Uri.parse(AppConstants.apiEndpoint),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ${AppConstants.apiKey}',
-          },
-          body: jsonEncode({
-            'model': AppConstants.model,
-            'messages': allMessages,
-            'temperature': AppConstants.temperature,
-            'max_tokens': _dynamicMaxTokens,
-            'tool_choice': 'none',
-          }),
-        )
-        .timeout(_dynamicTimeout);
-
-    if (fallbackResponse.statusCode == 200) {
-      final data = jsonDecode(fallbackResponse.body) as Map<String, dynamic>;
-      final choices = data['choices'] as List;
-      if (choices.isNotEmpty) {
-        final message = choices[0]['message'] as Map<String, dynamic>;
-        return _cleanResponse(message['content'] as String? ?? '');
-      }
-    }
-
-    throw Exception('AI请求超时，请检查网络后重试');
+    throw Exception('AI请求失败，请重试');
   }
 
   /// 检查 API Key 是否已配置
