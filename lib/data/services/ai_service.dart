@@ -16,6 +16,29 @@ import '../models/task.dart';
 class AIService {
   AIService._();
 
+  /// API 请求计数器（本次运行期间）
+  static int _requestCount = 0;
+  static int _totalTokensUsed = 0;
+
+  /// 获取本次运行的 API 请求次数
+  static int get requestCount => _requestCount;
+
+  /// 获取本次运行的 token 总消耗
+  static int get totalTokensUsed => _totalTokensUsed;
+
+  /// 记录 API 用量
+  static void _logUsage(Map<String, dynamic>? usage, String tag) {
+    _requestCount++;
+    if (usage != null) {
+      final total = usage['total_tokens'] as int? ?? 0;
+      _totalTokensUsed += total;
+      print('[AIService] #$tag | 请求#${_requestCount} | '
+          'prompt=${usage['prompt_tokens']} | '
+          'completion=${usage['completion_tokens']} | '
+          'total=$total | 累计=${_totalTokensUsed}');
+    }
+  }
+
   /// 联网搜索工具定义（Function Calling）
   static const List<Map<String, dynamic>> _searchTools = [
     {
@@ -389,6 +412,8 @@ JSON 格式：
       final choices = data['choices'] as List;
       if (choices.isEmpty) return null;
 
+      _logUsage(data['usage'] as Map<String, dynamic>?, 'retry');
+
       final message = choices[0]['message'] as Map<String, dynamic>;
       final content = _cleanResponse(message['content'] as String? ?? '');
 
@@ -618,6 +643,7 @@ JSON 格式：
     }
 
     final data = jsonDecode(response.body);
+    _logUsage(data['usage'] as Map<String, dynamic>?, 'verify');
     final content = data['choices'][0]['message']['content'] as String? ?? '';
     return _cleanResponse(content);
   }
@@ -804,13 +830,7 @@ JSON 格式：
       if (choices.isEmpty) throw Exception('AI返回为空');
 
       // 记录 token 用量
-      final usage = data['usage'];
-      if (usage != null) {
-        print('[AIService] chat round=$round | '
-            'prompt=${usage['prompt_tokens']} | '
-            'completion=${usage['completion_tokens']} | '
-            'total=${usage['total_tokens']}');
-      }
+      _logUsage(data['usage'] as Map<String, dynamic>?, 'chat_r$round');
 
       final message = choices[0]['message'] as Map<String, dynamic>;
       final toolCalls = message['tool_calls'] as List?;
@@ -947,6 +967,8 @@ $feedback
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final choices = data['choices'] as List;
       if (choices.isEmpty) throw Exception('续订返回为空');
+
+      _logUsage(data['usage'] as Map<String, dynamic>?, 'renew_r$round');
 
       final message = choices[0]['message'] as Map<String, dynamic>;
       final toolCalls = message['tool_calls'] as List?;
@@ -1204,6 +1226,8 @@ $feedback
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final choices = data['choices'] as List;
       if (choices.isEmpty) throw Exception('AI返回为空');
+
+      _logUsage(data['usage'] as Map<String, dynamic>?, 'adjust_r$round');
 
       final message = choices[0]['message'] as Map<String, dynamic>;
       final toolCalls = message['tool_calls'] as List?;
