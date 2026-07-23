@@ -24,6 +24,8 @@ workflows:
       branch_patterns:
         - pattern: main
           include: true
+        - pattern: master
+          include: true
       tag_patterns:
         - pattern: v*
           include: true
@@ -36,6 +38,8 @@ workflows:
 
       - name: Build Release APK
         script: |
+          # 清理可能缓存了 502 错误的 Gradle 依赖
+          rm -rf ~/.gradle/caches/modules-2/files-2.1/org.apache.httpcomponents
           flutter build apk --release \
             --android-skip-build-dependency-validation
 
