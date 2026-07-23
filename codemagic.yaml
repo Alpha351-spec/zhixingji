@@ -1,0 +1,54 @@
+workflows:
+  android-release:
+    name: 知行计 Release APK
+    max_build_duration: 60
+    instance_type: linux_x4
+
+    environment:
+      flutter: 3.44.6
+      java: 17
+      ndk: r27
+      vars:
+        PUB_HOSTED_URL: "https://pub.flutter-io.cn"
+        FLUTTER_STORAGE_BASE_URL: "https://storage.flutter-io.cn"
+
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - ~/.gradle/caches
+
+    triggering:
+      events:
+        - push
+        - tag
+      branch_patterns:
+        - pattern: main
+          include: true
+      tag_patterns:
+        - pattern: v*
+          include: true
+      cancel_previous_builds: true
+
+    scripts:
+      - name: Flutter pub get
+        script: |
+          flutter pub get
+
+      - name: Build Release APK
+        script: |
+          flutter build apk --release \
+            --android-skip-build-dependency-validation
+
+    artifacts:
+      - build/**/outputs/apk/**/*.apk
+
+    publishing:
+      email:
+        recipients:
+          - user@example.com
+      scripts:
+        - name: Print APK info
+          script: |
+            echo "=== APK 构建完成 ==="
+            find . -name "*.apk" -type f 2>/dev/null
+            ls -lh build/app/outputs/apk/release/app-release.apk 2>/dev/null || echo "APK not found at default path"
