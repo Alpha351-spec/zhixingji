@@ -1,7 +1,7 @@
 workflows:
   android-release:
     name: 知行计 Release APK
-    max_build_duration: 60
+    max_build_duration: 120
     instance_type: mac_mini_m2
 
     environment:
@@ -26,6 +26,8 @@ workflows:
           include: true
         - pattern: master
           include: true
+        - pattern: p0
+          include: true
       tag_patterns:
         - pattern: v*
           include: true
@@ -36,9 +38,16 @@ workflows:
         script: |
           flutter pub get
 
+      - name: Pre-warm Gradle dependencies
+        script: |
+          # 预下载关键依赖，避免构建中超时
+          cd android
+          ./gradlew --refresh-dependencies :app:dependencies --configuration releaseRuntimeClasspath || true
+          cd ..
+
       - name: Build Release APK
         script: |
-          # 清理可能缓存了 502 错误的 Gradle 依赖
+          # 清理可能缓存了错误的 Gradle 依赖
           rm -rf ~/.gradle/caches/modules-2/files-2.1/org.apache.httpcomponents
           flutter build apk --release \
             --android-skip-build-dependency-validation
